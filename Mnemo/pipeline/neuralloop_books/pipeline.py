@@ -1,0 +1,291 @@
+"""Run the whole book pipeline: split, prepare the engine, make every item, and keep book.json up to date."""
+
+import asyncio
+import contextlib
+import fcntl
+import os
+import time
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from . import bookdata
+from .activity import Activity
+from .chapters import clean_title, split_book
+from .config import DEFAULT_INSTRUCTIONS, MEDIA_TASKS, quota_message
+from .engines.auto import leave_lane, made_by
+from .models import SetupError, safe_message
+from .notebook import NOT_ANSWERING, is_quota_error
+from .selection import parse_selection
+from .state import DONE, FAILED, TODO, WAITING, WORKING, BookState, UnreadableState
+
+
+@dataclass
+class Options:
+    book: Path
+    out: Path
+    chapters: str = "all"
+    media: str = "1-3"
+    audio: str = "deep-dive"
+    audio_length: str = "auto"  # "auto" = short podcasts for short chapters (quicker to make)
+    video: str = "explainer"
+    style: str = "kawaii"
+    language: str = "en"
+    instructions: str = DEFAULT_INSTRUCTIONS
+    parallel: int = 2
+    media_parallel: int = 1  # podcasts and explainers, in their own lane so text items never wait behind them
+    engine: str = "auto"
+    provider: str = "auto"
+    model: str | None = None
+    context: int | None = None
+    speech: str = "auto"
+    voices: str | None = None
+    base_url: str | None = None
+    voice_quality: str = "fast"  # Rumik 4-bit ("fast", about twice as quick) or 8-bit ("best")
+    # item -> aiconfig.ModelChoice, from the person's ai.json
+    task_choices: dict = field(default_factory=dict)
+    hermes_tools: bool = False  # ai.json `hermesTools`: the person accepts that Hermes runs with its tools on
+    title: str | None = None
+    retry: bool = False
+    dry_run: bool = False
+    log: Callable[[str], None] = field(default=print, repr=False)
+
+
+def prepare_state(opts: Options) -> BookState:
+    """Load the saved state, or split the book and create it; then mark what this run should make."""
+    for sub in ("chapters", "media", "raw"):
+        (opts.out / sub).mkdir(parents=True, exist_ok=True)
+    state = _load_state(opts)
+    if state is None:
+        opts.log(f"Splitting {safe_message(opts.book.name)} into chapters…")
+        chapters = split_book(opts.book, opts.out / "chapters")  # never empty: UnreadableBookError instead
+        title = clean_title(opts.title or opts.book.stem.replace("_", " ").replace("-", " ")) or "Book"
+        state = BookState.create(
+            opts.out / "state.json",
+            title=title,
+            source=opts.book.name,
+            chapters=chapters,
+            dry_run=opts.dry_run,
+        )
+    state.ensure_tasks()
+    state.reset_interrupted()  # safe: the book's lock means no other run is working on it
+    count = len(state.chapters)
+    try:
+        chosen, media = parse_selection(opts.chapters, count), parse_selection(opts.media, count)
+    except ValueError as error:
+        raise BookProblem(str(error)) from error
+    state.apply_selection(
+        chosen,
+        media,
+        audio=opts.audio != "none",
+        video=opts.video != "none",
+        retry=opts.retry,
+    )
+    state.data["options"] = book_options(opts)
+    state.save()
+    opts.log(
+        f"{count} chapters found. Working on {len(chosen)} of them; "
+        f"podcast + video for {len(chosen & media)}."
+    )
+    return state
+
+
+class BookProblem(ValueError):
+    """The run can't go on until the person changes something (the chapters asked for, the book itself)."""
+
+
+def _load_state(opts: Options) -> BookState | None:
+    """The saved state; one that can't be read is kept aside (never deleted) and the book is split again."""
+    path = opts.out / "state.json"
+    try:
+        return BookState.load(path)
+    except UnreadableState:
+        aside = path.with_name(f"state.json.unreadable-{time.strftime('%Y%m%d-%H%M%S')}")
+        os.replace(path, aside)
+        opts.log(f"This book's saved progress couldn't be read; kept it as {aside.name}, starting afresh.")
+        return None
+
+
+def book_options(opts: Options) -> dict:
+    return {"audio": opts.audio, "video": opts.video, "style": opts.style, "language": opts.language}
+
+
+async def run(opts: Options, engine) -> BookState:
+    opts.out.mkdir(parents=True, exist_ok=True)
+    with _book_lock(opts.out):
+        return await _run(opts, engine)
+
+
+ALREADY_RUNNING = "This book is already being prepared. Pip will keep going with that run."
+
+
+@contextlib.contextmanager
+def _book_lock(out: Path):
+    """One run per book: a second run stops instead of racing the first on state.json.
+
+    The lock is the operating system's (flock) on `.running`, held for the whole run and released even when
+    the process is killed, so a left-over file never blocks. The file also holds the run's process id.
+    """
+    path = out / ".running"
+    while True:
+        handle = open(path, "a+")  # noqa: SIM115 - held open for the whole run
+        try:
+            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            handle.close()
+            raise BookProblem(ALREADY_RUNNING) from None
+        try:
+            same_file = os.stat(path).st_ino == os.fstat(handle.fileno()).st_ino
+        except FileNotFoundError:
+            same_file = False
+        if same_file:
+            break
+        handle.close()  # the run before us removed the file while we opened it: lock the new one
+    try:
+        handle.seek(0)
+        handle.truncate()
+        handle.write(str(os.getpid()))
+        handle.flush()
+        yield
+    finally:
+        path.unlink(missing_ok=True)
+        handle.close()
+
+
+async def _run(opts: Options, engine) -> BookState:
+    state = prepare_state(opts)
+    await bookdata.write_async(opts.out, state, book_options(opts))
+    async with engine:
+        feed = Activity(opts.out, state.data.get("timings", {}))
+        first = next(iter(state.pending()), None)
+        if first is None:
+            await engine.prepare(state)
+        else:
+            # Getting ready can take a while the first time (downloading the Mac's AI): it shows on the item
+            # that's waiting for it.
+            try:
+                with feed.preparing(first[0]["n"], first[1], engine.name):
+                    await engine.prepare(state)
+            except BaseException:
+                feed.close()  # e.g. the download failed: nothing is being made any more
+                raise
+        pending = state.pending()
+        opts.log(f"Making {len(pending)} items with {engine.name}, chapter by chapter.")
+        feed.queue([(c["n"], t) for c, t in pending])
+        lanes = {"text": asyncio.Semaphore(opts.parallel), "media": asyncio.Semaphore(opts.media_parallel)}
+        # (engine, item kind) pairs that hit a limit (or that NotebookLM didn't answer after patient retries)
+        # -> why: later items of that kind made by the same engine wait without trying. Keyed by engine, so a
+        # limit on auto's fallback never stops NotebookLM trying the next ones.
+        quota_hit: dict[tuple[str, str], str] = {}
+
+        def lane(task: str) -> asyncio.Semaphore:
+            return lanes["media" if task in MEDIA_TASKS else "text"]
+
+        tasks = [
+            asyncio.ensure_future(_make(opts, state, engine, lane(t), quota_hit, c, t, feed))
+            for c, t in pending
+        ]
+        try:
+            await asyncio.gather(*tasks)
+        except BaseException:
+            # e.g. a SetupError: stop every other item before the engine closes (TaskGroup needs 3.11).
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            # Items stopped half-way go back to the queue, so the app never shows them as being made.
+            state.reset_interrupted()
+            bookdata.write(opts.out, state, book_options(opts))
+            raise
+        finally:
+            feed.close()
+            state.data["timings"] = feed.timings  # how long each maker takes, for the next estimates
+            state.save()
+    await bookdata.write_async(opts.out, state, book_options(opts))
+    return state
+
+
+class _Lane:
+    """An item's place in its lane (text or media). It can hand the place back early: auto does, before an
+    item NotebookLM couldn't make queues for a fallback that makes one at a time, so that wait never holds a
+    lane NotebookLM's own items need."""
+
+    def __init__(self, limiter: asyncio.Semaphore):
+        self._limiter, self._held, self._token = limiter, False, None
+
+    async def __aenter__(self):
+        await self._limiter.acquire()
+        self._held = True
+        self._token = leave_lane.set(self.leave)
+        return self
+
+    def leave(self) -> None:
+        if self._held:
+            self._held = False
+            self._limiter.release()
+
+    async def __aexit__(self, *exc):
+        leave_lane.reset(self._token)
+        self.leave()
+        return False
+
+
+async def _make(opts, state, engine, limiter, quota_hit, chapter, task, feed: Activity) -> None:
+    entry = chapter["tasks"][task]
+
+    def wait_behind_limit() -> bool:
+        if (engine.name, task) not in quota_hit:
+            return False
+        entry.update(status=WAITING, error=quota_hit[engine.name, task])
+        state.save()
+        feed.skip(chapter["n"], task)
+        return True
+
+    if wait_behind_limit():
+        return
+    async with _Lane(limiter):
+        if wait_behind_limit():  # another item of this kind hit the limit while we waited
+            return
+        entry["status"] = WORKING
+        state.save()
+        await bookdata.write_async(opts.out, state, book_options(opts))
+        started = time.monotonic()
+        token = feed.begin(chapter["n"], task, engine.name)
+        ok = False
+        try:
+            result = await engine.make(task, chapter)
+            ok = True
+            entry["by"] = result.pop("_by", engine.name)  # which engine made it (auto can mix)
+            chapter.update(result)
+            entry.update(status=DONE, error="")
+            for key in ("taskId", "requestedAt", "downloadTries"):  # a NotebookLM request (auto may mix)
+                entry.pop(key, None)
+            opts.log(f"  ✓ chapter {chapter['n']} {task} ({time.monotonic() - started:.0f}s)")
+        except SetupError as error:
+            # e.g. a revoked key: stop the run and say what to fix; the item says so and is made next run.
+            entry.update(status=TODO, error=safe_message(error))
+            raise
+        except Exception as error:  # one item failing must not stop the rest; it's recorded and retried later
+            if getattr(error, "try_later", False):  # NotebookLM didn't answer after patient retries: next run
+                why = getattr(error, "waiting_message", NOT_ANSWERING)
+                if not getattr(error, "only_this_item", False):
+                    # The rest of this kind wait too, instead of each spending minutes on the same retries.
+                    quota_hit[made_by(error, engine.name), task] = why
+                entry.update(status=WAITING, error=why)
+                what = (
+                    f"{made_by(error, engine.name)} limit reached; will continue next run"
+                    if getattr(error, "limit", False)
+                    else why  # the reason it waits (no answer, no room for a notebook, still reading…)
+                )
+                opts.log(f"  … chapter {chapter['n']} {task}: {what}")
+            elif is_quota_error(error):
+                who = made_by(error, engine.name)  # auto may have handed this item to its fallback
+                quota_hit[who, task] = quota_message(who)
+                entry.update(status=WAITING, error=quota_message(who))
+                opts.log(f"  … chapter {chapter['n']} {task}: {who} limit reached; will continue next run")
+            else:
+                entry.update(status=FAILED, error=f"{type(error).__name__}: {safe_message(error)}")
+                opts.log(f"  ✗ chapter {chapter['n']} {task}: {entry['error']}")
+        finally:
+            feed.end(chapter["n"], task, ok, token)
+        state.save()
+        await bookdata.write_async(opts.out, state, book_options(opts))

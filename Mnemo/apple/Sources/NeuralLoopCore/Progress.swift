@@ -1,0 +1,340 @@
+// Study progress (progress.json), and merging every device's copy without losing anything (spec 07).
+
+import Foundation
+
+/// Any JSON value, for the parts of progress the core passes through untouched (quiz answers, recall notes, …).
+public enum JSONValue: Codable, Equatable, Sendable {
+    case string(String), number(Double), bool(Bool), object([String: JSONValue]), array([JSONValue]), null
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.singleValueContainer()
+        if c.decodeNil() { self = .null }
+        else if let v = try? c.decode(Bool.self) { self = .bool(v) }
+        else if let v = try? c.decode(Double.self) { self = .number(v) }
+        else if let v = try? c.decode(String.self) { self = .string(v) }
+        else if let v = try? c.decode([JSONValue].self) { self = .array(v) }
+        else { self = .object(try c.decode([String: JSONValue].self)) }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.singleValueContainer()
+        switch self {
+        case .string(let v): try c.encode(v)
+        case .number(let v): try c.encode(v)
+        case .bool(let v): try c.encode(v)
+        case .object(let v): try c.encode(v)
+        case .array(let v): try c.encode(v)
+        case .null: try c.encodeNil()
+        }
+    }
+}
+
+public struct Resume: Codable, Equatable, Sendable {
+    public var n: Int
+    public var stage: String
+    public init(n: Int, stage: String) { (self.n, self.stage) = (n, stage) }
+}
+
+/// One device's progress for one book. Field names match progress.json and the study site's store.
+public struct StudyProgress: Codable, Equatable, Sendable {
+    public var cards: [String: CardState] = [:]
+    public var loop: [String: [String: Double]] = [:]      // chapter -> step -> time done (closedShown as 1)
+    public var quiz: [String: JSONValue] = [:]
+    public var recall: [String: JSONValue] = [:]
+    public var remake: [String: JSONValue] = [:]
+    public var mapPos: [String: [Double]] = [:]
+    public var mapSeen: [Int] = []
+    public var last: Resume?
+    public var log: [String: Double] = [:]                 // local day -> seconds studied
+    public var updatedAt: Double = 0                        // when this device last changed anything (Unix ms)
+    /// When each quiz, recall, remake, map position, and "where you left off" last changed, anywhere (Unix ms):
+    /// "quiz.3", "recall.3", "remake.2", "mapPos.<id>", "last". Merging keeps the newest of each, so a device saving an
+    /// older view never rolls back newer work. Files from before stamps count as 0 (then the newer file wins).
+    public var stamps: [String: Double] = [:]
+    /// What of each chapter's podcast and video has really played (spec 09): chapter -> played stretches.
+    public var watch: [String: WatchProgress] = [:]
+    /// Reading time each chapter's pages earned (spec 09): chapter -> pages, page count, furthest page.
+    public var reading: [String: ReadingRecord] = [:]
+
+    public init() {}
+
+    enum CodingKeys: String, CodingKey {
+        case cards, loop, quiz, recall, remake, mapPos, mapSeen, last, log, updatedAt, stamps, watch, reading
+    }
+
+    /// Lenient: one odd card, day, or field (from an older or newer app, or a half-finished edit) is skipped rather
+    /// than losing everything else.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        cards = ((try? c.decodeIfPresent([String: Lossy<CardState>].self, forKey: .cards)) ?? nil)?.compactMapValues(\.value) ?? [:]
+        loop = ((try? c.decodeIfPresent([String: [String: Lossy<FlexibleNumber>]].self, forKey: .loop)) ?? nil)?
+            .mapValues { $0.compactMapValues { $0.value?.value } } ?? [:]
+        quiz = ((try? c.decodeIfPresent([String: JSONValue].self, forKey: .quiz)) ?? nil) ?? [:]
+        recall = ((try? c.decodeIfPresent([String: JSONValue].self, forKey: .recall)) ?? nil) ?? [:]
+        remake = ((try? c.decodeIfPresent([String: JSONValue].self, forKey: .remake)) ?? nil) ?? [:]
+        mapPos = ((try? c.decodeIfPresent([String: Lossy<[Double]>].self, forKey: .mapPos)) ?? nil)?
+            .compactMapValues(\.value).filter { $0.value.count == 2 } ?? [:]
+        mapSeen = ((try? c.decodeIfPresent([Lossy<Int>].self, forKey: .mapSeen)) ?? nil)?.compactMap(\.value) ?? []
+        last = (try? c.decodeIfPresent(Resume.self, forKey: .last)) ?? nil
+        log = ((try? c.decodeIfPresent([String: Lossy<Double>].self, forKey: .log)) ?? nil)?.compactMapValues(\.value) ?? [:]
+        updatedAt = ((try? c.decodeIfPresent(Double.self, forKey: .updatedAt)) ?? nil) ?? 0
+        stamps = ((try? c.decodeIfPresent([String: Lossy<Double>].self, forKey: .stamps)) ?? nil)?.compactMapValues(\.value) ?? [:]
+        watch = ((try? c.decodeIfPresent([String: Lossy<WatchProgress>].self, forKey: .watch)) ?? nil)?
+            .compactMapValues(\.value).filter { Int($0.key) != nil } ?? [:]
+        reading = ((try? c.decodeIfPresent([String: Lossy<ReadingRecord>].self, forKey: .reading)) ?? nil)?
+            .compactMapValues(\.value).filter { Int($0.key) != nil } ?? [:]
+    }
+
+    /// Watching and reading are left out while empty, so files from before them stay byte for byte the same.
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(cards, forKey: .cards)
+        try c.encode(loop, forKey: .loop)
+        try c.encode(quiz, forKey: .quiz)
+        try c.encode(recall, forKey: .recall)
+        try c.encode(remake, forKey: .remake)
+        try c.encode(mapPos, forKey: .mapPos)
+        try c.encode(mapSeen, forKey: .mapSeen)
+        try c.encodeIfPresent(last, forKey: .last)
+        try c.encode(log, forKey: .log)
+        try c.encode(updatedAt, forKey: .updatedAt)
+        try c.encode(stamps, forKey: .stamps)
+        if !watch.isEmpty { try c.encode(watch, forKey: .watch) }
+        if !reading.isEmpty { try c.encode(reading, forKey: .reading) }
+    }
+
+    // Changes that carry their own time (use these rather than setting the fields, so merging knows what's newest).
+
+    public mutating func setQuiz(_ key: String, _ value: JSONValue, now: Double) { quiz[key] = value; stamp("quiz.\(key)", now) }
+    public mutating func setRemake(_ key: String, _ value: JSONValue, now: Double) { remake[key] = value; stamp("remake.\(key)", now) }
+    public mutating func setMapPos(_ id: String, _ point: [Double], now: Double) { mapPos[id] = point; stamp("mapPos.\(id)", now) }
+    public mutating func setLast(_ resume: Resume, now: Double) { last = resume; stamp("last", now) }
+
+    private mutating func stamp(_ key: String, _ now: Double) {
+        stamps[key] = max(stamps[key] ?? 0, now)
+        updatedAt = max(updatedAt, now)
+    }
+
+    /// Merge every device's progress. Cards: the latest review wins. Loop steps: done anywhere is done (earliest time).
+    /// Watching: the union of what played anywhere. Reading: the most seconds for each page, the furthest page.
+    /// Study log: seconds add up across devices (each device's own file holds only its own study time). Each quiz,
+    /// recall, remake, map position, and where you left off: the newest stamp wins (a tie, as with files from before
+    /// stamps, goes to the most recently updated device).
+    public static func merged(_ devices: [StudyProgress]) -> StudyProgress {
+        var out = StudyProgress()
+        func newest<V>(_ field: WritableKeyPath<StudyProgress, [String: V]>, _ prefix: String, from device: StudyProgress) {
+            for (key, value) in device[keyPath: field] where device.stamps["\(prefix).\(key)"] ?? 0 >= out.stamps["\(prefix).\(key)"] ?? 0 {
+                out[keyPath: field][key] = value
+            }
+        }
+        let ordered = devices.sorted { ($0.updatedAt, $0.stamps.count) < ($1.updatedAt, $1.stamps.count) }
+        for device in ordered {
+            for (id, card) in device.cards where card.last >= (out.cards[id]?.last ?? -1) { out.cards[id] = card }
+            for (chapter, steps) in device.loop {
+                out.loop[chapter, default: [:]].merge(steps) { min($0, $1) }
+            }
+            for (day, seconds) in device.log { out.log[day, default: 0] += seconds }
+            out.watch.merge(device.watch) { $0.union($1) }
+            out.reading.merge(device.reading) { $0.merged($1) }
+            newest(\.quiz, "quiz", from: device)
+            newest(\.recall, "recall", from: device)
+            newest(\.remake, "remake", from: device)
+            newest(\.mapPos, "mapPos", from: device)
+            out.mapSeen = Array(Set(out.mapSeen).union(device.mapSeen)).sorted()
+            if let last = device.last, device.stamps["last"] ?? 0 >= out.stamps["last"] ?? 0 { out.last = last }
+            out.stamps.merge(device.stamps) { max($0, $1) }
+            out.updatedAt = max(out.updatedAt, device.updatedAt)
+        }
+        return out
+    }
+
+    /// Two copies of this device's own file (two windows on one book, each saving its own): merged like devices,
+    /// except study time, which both copies counted from the same start, so each day keeps the larger count.
+    public static func mergedSameDevice(_ a: StudyProgress, _ b: StudyProgress) -> StudyProgress {
+        var out = merged([a, b])
+        out.log = a.log.merging(b.log) { max($0, $1) }
+        return out
+    }
+}
+
+/// This device's study time already counted under an id it gave up after a clash. A clash means the device was
+/// copied (Migration Assistant, a restored backup): both copies carry the history up to the copy, and the old id's
+/// file, which the other copy keeps writing, counts it. So this device's own progress.json still holds its whole log,
+/// but under its new id only the time beyond this goes up, and merging here takes this much off its own log.
+/// Each old id's part counts only while that id's file is really there (`present`): in the Drive being synced to for
+/// what goes up, in `devices/` for what's shown. Another Google account's library, where the old id never wrote,
+/// gets this device's whole history, and right after the clash nothing is taken off before the old file comes down.
+/// Kept per book in `.counted-elsewhere.json` (a dot file: never synced): `{"byID": {id: {day: seconds}}}`; the older
+/// `{log, ids}` shape is read with its time under the first id.
+public struct CountedElsewhere: Codable, Equatable, Sendable {
+    public var byID: [String: [String: Double]] = [:]   // id given up -> local day -> seconds already counted under it
+
+    public static let fileName = ".counted-elsewhere.json"
+
+    public init(byID: [String: [String: Double]] = [:]) { self.byID = byID }
+
+    private enum CodingKeys: String, CodingKey { case byID, log, ids }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        if let parts = (try? c.decodeIfPresent([String: Lossy<[String: Lossy<Double>]>].self, forKey: .byID)) ?? nil {
+            byID = parts.compactMapValues { $0.value?.compactMapValues(\.value) }
+            return
+        }
+        // The older shape: one log for every id given up, in order.
+        let log = ((try? c.decodeIfPresent([String: Lossy<Double>].self, forKey: .log)) ?? nil)?.compactMapValues(\.value) ?? [:]
+        let ids = ((try? c.decodeIfPresent([String].self, forKey: .ids)) ?? nil) ?? []
+        for (index, id) in ids.enumerated() where byID[id] == nil { byID[id] = index == 0 ? log : [:] }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(byID, forKey: .byID)
+    }
+
+    /// The ids given up (sorted).
+    public var ids: [String] { byID.keys.sorted() }
+
+    /// The time counted under the ids in `present`, per day.
+    public func log(present: Set<String>) -> [String: Double] {
+        byID.filter { present.contains($0.key) }.values.reduce(into: [:]) { out, log in
+            for (day, seconds) in log { out[day, default: 0] += seconds }
+        }
+    }
+
+    public static func load(from folder: URL) -> CountedElsewhere? {
+        (try? Data(contentsOf: folder.appendingPathComponent(fileName))).flatMap { try? JSONDecoder().decode(Self.self, from: $0) }
+    }
+
+    public func save(to folder: URL) {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys
+        guard let data = try? encoder.encode(self) else { return }
+        try? data.write(to: folder.appendingPathComponent(Self.fileName), options: .atomic)
+    }
+
+    /// The time under `id` (just given up) joins what's counted elsewhere: `sent` is the log last sent under it (which
+    /// already left out what was counted elsewhere before). An id already added changes nothing.
+    public mutating func add(id: String, sent: [String: Double]) {
+        guard byID[id] == nil else { return }
+        byID[id] = sent.filter { $0.value > 0 }
+    }
+
+    /// This device's log beyond what's counted under the ids in `present` (days with nothing left are left out).
+    public func beyond(_ own: [String: Double], present: Set<String>) -> [String: Double] {
+        let counted = log(present: present)
+        return own.reduce(into: [:]) { out, entry in
+            let left = entry.value - (counted[entry.key] ?? 0)
+            if left > 0 { out[entry.key] = left }
+        }
+    }
+
+    /// What merging takes off this device's own log for the ids whose files are `present`: never more than the own log
+    /// holds that day (as negative time).
+    public func correction(own: [String: Double], present: Set<String>) -> [String: Double] {
+        log(present: present).reduce(into: [:]) { out, entry in
+            let off = min(entry.value, own[entry.key] ?? 0)
+            if off > 0 { out[entry.key] = -off }
+        }
+    }
+
+    /// This device's progress.json as it goes up under its new id: the same, with only the time beyond what's counted
+    /// under the ids `present` in that Drive (every other field as it is, even ones this version doesn't know); the
+    /// file unchanged when none of them is there. Nil if it isn't JSON.
+    public func uploadable(_ data: Data, present: Set<String>) -> Data? {
+        guard var object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let progress = try? JSONDecoder().decode(StudyProgress.self, from: data) else { return nil }
+        guard !log(present: present).isEmpty else { return data }
+        object["log"] = beyond(progress.log, present: present).mapValues { $0.rounded() == $0 && abs($0) < 1e15 ? NSNumber(value: Int64($0)) : NSNumber(value: $0) }
+        return try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys, .withoutEscapingSlashes])
+    }
+}
+
+/// The study site writes `true` for closedShown and timestamps for steps; accept both as numbers.
+struct FlexibleNumber: Decodable {
+    let value: Double
+    init(from decoder: Decoder) throws {
+        let c = try decoder.singleValueContainer()
+        if let b = try? c.decode(Bool.self) { value = b ? 1 : 0 } else { value = try c.decode(Double.self) }
+    }
+}
+
+/// Decodes to nil instead of failing, so one bad entry doesn't take its neighbours down with it.
+struct Lossy<T: Decodable>: Decodable {
+    let value: T?
+    init(from decoder: Decoder) throws { value = try? T(from: decoder) }
+}
+
+/// progress.json on disk: a missing file is a fresh start; a file that isn't readable JSON is kept aside
+/// (progress.json.unreadable-<time>) before starting fresh, so nothing is ever overwritten silently.
+public enum ProgressFile {
+    public static func load(from folder: URL, now: Date = Date()) -> StudyProgress {
+        let file = folder.appendingPathComponent("progress.json")
+        guard let data = try? Data(contentsOf: file) else { return StudyProgress() }
+        if let progress = try? JSONDecoder().decode(StudyProgress.self, from: data) { return progress }
+        let aside = folder.appendingPathComponent("progress.json.unreadable-\(Int(now.timeIntervalSince1970))")
+        try? FileManager.default.moveItem(at: file, to: aside)
+        return StudyProgress()
+    }
+
+    /// This device's own progress and the view with every other device's merged in (their files, downloaded by sync,
+    /// sit in `devices/<id>.json`). Show `merged`; save changes with `save(merged, ownLog:)` so another device's study
+    /// time never ends up in this device's file.
+    public static func loadMerged(from folder: URL) -> (own: StudyProgress, merged: StudyProgress) {
+        let own = load(from: folder)
+        let others = others(in: folder)
+        return (own, others.isEmpty ? own : StudyProgress.merged([own] + others))
+    }
+
+    /// Every other device's progress for this book (their files, downloaded by sync, in `devices/<id>.json`). When
+    /// some of this device's study time is already counted under an id it gave up (`CountedElsewhere`) and that id's
+    /// file is here, one more entry takes that time back off, so merging counts it once.
+    public static func others(in folder: URL) -> [StudyProgress] {
+        let devices = folder.appendingPathComponent("devices", isDirectory: true)
+        var present = Set<String>()
+        var all = ((try? FileManager.default.contentsOfDirectory(at: devices, includingPropertiesForKeys: nil)) ?? [])
+            .filter { $0.pathExtension == "json" }
+            .compactMap { url -> StudyProgress? in
+                guard let progress = (try? Data(contentsOf: url)).flatMap({ try? JSONDecoder().decode(StudyProgress.self, from: $0) })
+                else { return nil }
+                present.insert(url.deletingPathExtension().lastPathComponent)
+                return progress
+            }
+        if let counted = CountedElsewhere.load(from: folder) {
+            let own = (try? Data(contentsOf: folder.appendingPathComponent("progress.json")))
+                .flatMap { try? JSONDecoder().decode(StudyProgress.self, from: $0) }?.log ?? [:]
+            var correction = StudyProgress()
+            correction.log = counted.correction(own: own, present: present)
+            if !correction.log.isEmpty { all.append(correction) }
+        }
+        return all
+    }
+
+    /// A cheap fingerprint of the other devices' progress files (names, sizes, modification times): when it changes,
+    /// sync brought something new and an open book should merge again.
+    public static func devicesSignature(in folder: URL) -> String {
+        let devices = folder.appendingPathComponent("devices", isDirectory: true)
+        let keys: [URLResourceKey] = [.contentModificationDateKey, .fileSizeKey]
+        return ((try? FileManager.default.contentsOfDirectory(at: devices, includingPropertiesForKeys: keys)) ?? [])
+            .filter { $0.pathExtension == "json" }
+            .map { url -> String in
+                let values = try? url.resourceValues(forKeys: Set(keys))
+                return "\(url.lastPathComponent):\(values?.fileSize ?? 0):\(values?.contentModificationDate?.timeIntervalSince1970 ?? 0)"
+            }
+            .sorted().joined(separator: "|")
+    }
+
+    /// Saves the merged view as this device's file, but with only this device's own study time.
+    public static func save(_ merged: StudyProgress, ownLog: [String: Double], to folder: URL) {
+        var mine = merged
+        mine.log = ownLog
+        save(mine, to: folder)
+    }
+
+    public static func save(_ progress: StudyProgress, to folder: URL) {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = .sortedKeys  // the same progress always makes the same bytes (so sync sends it once)
+        guard let data = try? encoder.encode(progress) else { return }
+        try? data.write(to: folder.appendingPathComponent("progress.json"), options: .atomic)
+    }
+}

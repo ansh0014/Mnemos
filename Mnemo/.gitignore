@@ -1,0 +1,44 @@
+# dependencies and builds
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.venv
+
+# generated books and media: never commit someone's book
+neuralloop-*/
+*.m4a
+*.mp4
+*.mp3
+*.caf
+*.pdf
+*.epub
+# …except the sample book (the dry run and the tests use it) and Silly mode's own nudge sounds (NOTICE.md)
+!pipeline/sample/**
+!apple/App/Resources/NeuralLoop-*.caf
+
+.DS_Store
+
+# editor settings
+.idea/
+
+# built runtimes and packaging leftovers
+build/
+apple/.build/
+apple/Config/Google.xcconfig
+apple/NeuralLoop.xcodeproj/
+apple/build/
+dist/
+
+# never commit secrets or generated audio
+.env
+.env.*
+*.p12
+*.key
+*.mobileprovision
+*.wav
+
+# your own signing team and private maintainer notes (never public)
+apple/Config/Local.xcconfig
+docs/private/
+.claude/worktrees/

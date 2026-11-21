@@ -1,0 +1,69 @@
+"""Fitting a chapter into a model's context: send it as is, or condense long chapters into notes first."""
+
+import json
+from pathlib import Path
+
+from . import convert, prompts
+
+
+def chunks(text: str, budget: int) -> list[str]:
+    """Split on paragraph boundaries into pieces of at most `budget` characters; nothing is lost."""
+    budget = max(1, budget)  # a zero or negative budget would never split (or never end)
+    if len(text) <= budget:
+        return [text]
+    pieces: list[str] = []
+    current = ""
+    for paragraph in text.split("\n\n"):
+        for part in [paragraph[i : i + budget] for i in range(0, len(paragraph), budget)] or [""]:
+            candidate = f"{current}\n\n{part}" if current else part
+            if len(candidate) <= budget and (current or part):
+                current = candidate
+            else:
+                if current:  # never an empty piece (a model would be asked to condense nothing)
+                    pieces.append(current)
+                current = part
+    if current:
+        pieces.append(current)
+    return pieces
+
+
+async def source_for(model, text: str, budget: int, cache: Path, system: str = "") -> str:
+    """The chapter text if it fits, otherwise condensed notes (made once, then read from `cache`).
+
+    The cache records the budget it was made for. Notes made for a bigger budget (another model) that don't
+    fit this one are made again; notes that fit are reused.
+    """
+    if len(text) <= budget:
+        return text
+    cached = _cached_notes(cache)
+    if cached is not None:
+        notes, made_for = cached
+        if len(notes) <= budget or made_for == budget:
+            return notes
+    pieces = chunks(text, budget)
+    # Each part's notes get a share of the budget, so all the notes fit together (~6 characters a word).
+    words = max(80, budget // len(pieces) // 6)
+    notes = []
+    for i, piece in enumerate(pieces, 1):
+        ask = prompts.CONDENSE.format(part=i, parts=len(pieces), words=words)
+        answer = await model.complete(
+            "condense", system or prompts.SYSTEM.format(language="English"), piece, ask
+        )
+        data = convert.loose_json(answer)
+        note = str(data["notes"]) if isinstance(data, dict) and data.get("notes") else answer
+        notes.append(f"Notes on part {i} of {len(pieces)}:\n{note.strip()}")
+    joined = "\n\n".join(notes)
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    cache.write_text(json.dumps({"notes": joined, "budget": budget}, ensure_ascii=False), encoding="utf-8")
+    return joined
+
+
+def _cached_notes(cache: Path) -> tuple[str, int | None] | None:
+    """(notes, the budget they were made for) from the cache, or None when there are none to use."""
+    try:
+        data = json.loads(cache.read_text(encoding="utf-8"))
+    except (OSError, ValueError):  # missing or half-written: make the notes again
+        return None
+    if not isinstance(data, dict) or not isinstance(data.get("notes"), str):
+        return None
+    return data["notes"], data.get("budget")

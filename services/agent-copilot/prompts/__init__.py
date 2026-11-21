@@ -1,0 +1,1 @@
+"""Co-Pilot prompt templates."""

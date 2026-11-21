@@ -1,8 +1,7 @@
-# How NeuralLoop is built
+# How Mnemos is built
 
 A guided tour of the whole codebase: what each directory and module is for, how a book travels from a PDF to a
-learning loop on your iPad, where data lives, and how it's kept safe. Read `CLAUDE.md` for the rules of working here
-and the exact contracts; this document explains the *why* and the *how it fits together*.
+learning loop on your device, where data lives, and how it's kept safe.
 
 ## The big picture
 
@@ -17,9 +16,9 @@ and the exact contracts; this document explains the *why* and the *how it fits t
    └─────────────────────────┘ │
                                ▼
    ┌──────────────────────────────────────────────────────┐
-   │  Book pipeline (Python), bundled inside the Mac app  │
-   │  split chapters → NotebookLM or your AI → Rumik       │
-   │  voices → explainer video → book.json                 │
+   │  Book pipeline (Python), bundled inside the app      │
+   │  split chapters → Prime briefing → Active Read       │
+   │  → Socratic Recall → Verification Sandbox → book.json│
    └──────────────────────────────────────────────────────┘
 ```
 
@@ -29,15 +28,15 @@ Three pieces, one repo:
 |---|---|---|---|
 | **Book pipeline** | Python 3.10+ | `pipeline/` | Turns a PDF/EPUB into per-chapter study material and writes a book folder |
 | **App core** | Swift 6 (no UI) | `apple/Sources/NeuralLoopCore` | Every rule the apps follow: spaced repetition, loops, progress merging, sync planning, Pip's animation maths. Fully unit-tested |
-| **Apps** | SwiftUI | `apple/App` | The Mac app and the iPad app: screens and services (running the pipeline, Google sign-in, sync, media) |
+| **Apps** | SwiftUI | `apple/App` | The Mac app and the iPad app: screens and services (running the pipeline, Google sign-in, sync, study views) |
 
 The pipeline never talks to the apps directly. The contract between them is **files**: the pipeline writes a book
-folder (`book.json`, chapters, media), and the apps read it. That's why the iPad can show books the Mac made: sync
+folder (`book.json`, chapters, knowledge graph), and the apps read it. That's why the iPad can show books the Mac made: sync
 just copies the folder.
 
 ## A book's journey
 
-1. **You drop `Clean Code.epub` on the Mac app.** `Library.add` copies it into
+1. **You drop `Clean Code.epub` on the app.** `Library.add` copies it into
    `~/Library/Application Support/app.neuralloop.books/books/clean-code/source.epub` (so the original can move, and
    macOS never asks for Documents access again) and starts the pipeline.
 2. **`PipelineRunner` launches the bundled runtime**: `NeuralLoop.app/Contents/Resources/runtime/bin/neuralloop`
@@ -46,23 +45,19 @@ just copies the folder.
 3. **The pipeline splits the book** (`chapters.py`): EPUB table of contents or PDF bookmarks → `chapters/01.md`,
    `02.md`… with figures in `chapters/img/`.
 4. **It makes every item for every chapter** (`pipeline.py`), chapter 1 first so you can start while it works:
-   a reading guide and recall questions, a concept graph, quiz, flashcards, mind map, a podcast, and an explainer
-   video. Text items and media run in separate lanes so a slow podcast never blocks a quiz.
-5. **Who makes them** (`engines/`): NotebookLM first (`auto`). If NotebookLM can't (not signed in, limit reached,
-   a failed item), your own AI makes that item: Ollama on your Mac by default, or Claude/OpenAI/OpenRouter/LM Studio/
-   opencode/Hermes. Podcasts made locally are voiced by Rumik on your Mac.
+   an executive conceptual briefing (`Prime`), an in-situ reading plan, recall questions, an interactive concept graph, 
+   quiz, and flashcards. With heavy audio and video generation removed, preparation takes **under 2 seconds per chapter**.
+5. **Who makes them** (`engines/`): Local engine (Anthropic, OpenAI, OpenRouter, local Ollama, Hermes) or NotebookLM.
 6. **After every item it rewrites `book.json`** (`bookdata.py`), atomically. The app reads it every few seconds, so
    chapters appear as they're ready and a notification says "Chapter 1 is ready to study".
-7. **Sync** (`SyncEngine`) uploads the book folder to your Drive's hidden app folder. The iPad downloads it; media
-   comes down when you open a chapter.
+7. **Sync** (`SyncEngine`) uploads the book folder to your Drive's hidden app folder. The iPad downloads it.
 8. **You study** on either device. Each device writes only its own progress file; everyone else's is merged in when
    read, so nothing is ever overwritten or double-counted.
 
 ## Directory by directory
 
 ```
-NeuralLoop/
-├── CLAUDE.md                 rules, contracts, file map (read first)
+Mnemos/
 ├── Makefile                  make setup / check / mac / package / runtime / pip
 ├── pipeline/                 the Python book pipeline
 ├── apple/                    the Swift core, the Mac app, the iPad app

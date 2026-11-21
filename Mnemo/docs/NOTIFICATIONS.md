@@ -1,8 +1,8 @@
-# How NeuralLoop's notifications work
+# How Mnemos notifications work
 
-This page explains every notification NeuralLoop can send: why it goes out, how it's built, where the code lives, and
+This page explains every notification Mnemos can send: why it goes out, how it's built, where the code lives, and
 how to change or move it. It's written for the next person or agent working on it. The rules here match the code
-and its tests. If you change one, change the other in the same commit (CLAUDE.md, golden rule 6).
+and its tests.
 
 Notifications are Mac only. The iPad app sends none: it has no `Notifier`, no `Nudger`, and its project target
 excludes those files (`apple/project.yml`).
@@ -58,9 +58,9 @@ The shelf refreshes every 4 seconds. Each time, `Library.announce` runs this for
    (`Loop.isUnlocked`: chapter 1, or the one after a closed loop) and whose own loop isn't closed. Locked chapters
    are never considered, however ready they are.
 2. **Is it complete?** (`ChapterReady.isComplete`) Nothing may still be coming: every item is `done`, `skipped`
-   (not prepared for this chapter, or not yet: spec 08 prepares chapters just ahead of you), or `failed`. `todo`,
+   (not prepared for this chapter, or not yet), or `failed`. `todo`,
    `working`, and `waiting_quota` count as still coming, so a
-   chapter whose podcast is still recording, or waiting on NotebookLM's limit, isn't ready yet. A `failed` item is
+   chapter whose briefing or artifacts are still generating isn't ready yet. A `failed` item is
    only tried again with "Prepare more" (`--retry`), so waiting for it would mean never announcing the chapter: it's
    studied with what's there.
 3. **Watch, then announce.** If the current chapter isn't complete, it goes on the watch list. If it is complete
@@ -70,14 +70,12 @@ The shelf refreshes every 4 seconds. Each time, `Library.announce` runs this for
 4. **Quiet hours and "Pause until tomorrow"** (`NudgeSettings.isQuiet`): a chapter that becomes ready while it's
    quiet stays on the watch list and is announced on the first look after the quiet ends.
 5. **Once ever.** An announced chapter goes on the announced list and is never watched or announced again, even when
-   "Prepare more" turns its skipped podcast and video back into to-dos.
+   "Prepare more" turns skipped items back into to-dos.
 6. **Remember both lists** across launches in UserDefaults (`chapterReadyWatching` and `chapterReadyAnnounced`,
    `[bookId: [chapter]]`), pruned to books still on the shelf.
 
-The words (`ChapterReady.message`) are honest about what's there: "everything is ready, podcast and video included"
-only names the podcast or video when they were made; with neither (the default makes them for chapters 1 and 2
-only) it's "everything Pip is making for it is ready"; with something failed, it says Pip couldn't make everything
-and that Prepare more tries again.
+The words (`ChapterReady.message`) are honest about what's there: "everything is ready"
+when all artifacts (Prime architectural briefing, Active Read guides, Recall checks, Harness challenges, FSRS cards) are made. Pip says when items failed and that Prepare more tries again.
 
 `Library.announce` doesn't run at all unless `Nudger.scheduledAllowed` (so a development copy never touches the
 lists). The notification goes out only if `settings.allows(.chapterReady)`; with that off, a ready chapter still

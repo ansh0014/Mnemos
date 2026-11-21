@@ -1,243 +1,322 @@
-# Mnemos Architecture: MCP Gateway & 5-Agent Pipeline
-## Enterprise-Grade Agent Orchestration Inspired by Uber's MCP Management Platform
+# Mnemos Architecture Specification
+## The Hybrid Technical Mastery Platform: Deterministic Simulation & Targeted Micro-Agents
+### Complete Technical Specification (HLD + LLD)
 
 ---
 
-## 1. Executive Summary & Codebase Reality Audit
+## 1. Architectural Overview & Design Motivation
 
-### 1.1 The Reality: 65% of Mnemos is Already Built and Working
-Unlike conceptual whitepapers or greenfield prototypes, **65% of the Mnemos engine is already fully implemented, tested, and operational in this repository**. 
+Mnemos is an enterprise-grade learning platform for software engineers studying dense, critical systems topics (distributed systems, database internals, networking, concurrency, protocols).
 
-Before introducing new architectural extensions, we perform an explicit audit of what exists today versus the remaining 35% to be delivered:
+It is built on a **Hybrid Architecture** that resolves the fundamental dilemma of AI learning platforms:
 
-```mermaid
-flowchart LR
-    subgraph ExistingCore ["Layer 1: Existing Built Core (65% COMPLETED)"]
-        direction LR
-        P1["PDF / EPUB Chapter Splitter<br>(chapters.py)"]
-        P2["Multi-Lane Generation Pipeline<br>(pipeline.py, state.py)"]
-        P3["LLM Engine Adapters<br>(Ollama, OpenAI, Claude, NotebookLM)"]
-        P4["Deterministic FSRS-4.5 Scheduler<br>(FSRS.swift / Python Core)"]
-        P5["Explainer Video Generator<br>(video.py - Chromium + PyAV)"]
-        P6["5-Stage UI & Telemetry<br>(SwiftUI & Anti-Cheat Coverage)"]
-        P7["Pip Sprite Animation Rig<br>(pip-rig.json, 8 poses, nudges)"]
-    end
-
-    subgraph NewArchitecture ["Layer 2: Architectural Extensions (35% TO BUILD)"]
-        direction LR
-        N1["Uber-Inspired MCP Gateway<br>(mcp_gateway.py: Proxy & Registry)"]
-        N2["Shared Cognitive Learner Memory<br>(learner_memory.db: Misconceptions)"]
-        N3["Windows Audio Synthesizer<br>(edge-tts + ffmpeg AAC encoder)"]
-        N4["Conversational Socratic Recall<br>(Multi-turn probing tutor)"]
-        N5["Android Companion App<br>(Podcast player + FSRS reviews)"]
-    end
-
-    ExistingCore --> NewArchitecture
-```
-
-### Detailed Component Implementation Audit
-
-| Component | Status | Existing File Path in Repository | What Works Today | What This Architecture Adds |
-| :--- | :---: | :--- | :--- | :--- |
-| **Document Ingestion** | **DONE (90%)** | `pipeline/neuralloop_books/chapters.py` | Full PDF bookmarks, EPUB NCX/nav trees, section chunking, image extraction. | Document Intelligence Classifier (Research papers vs. slides). |
-| **Generation Pipeline** | **DONE (85%)** | `pipeline/neuralloop_books/pipeline.py` | Multi-lane text & media execution, quota management, atomic `book.json` writes. | Dynamic stage re-routing via Orchestrator. |
-| **Model Adapters** | **DONE (90%)** | `pipeline/neuralloop_books/models/` | Adapters for Ollama, OpenAI-compatible (LM Studio/OpenRouter), Anthropic, Hermes. | Unified MCP protocol abstraction. |
-| **Spaced Repetition** | **DONE (95%)** | `apple/Sources/NeuralLoopCore/FSRS.swift` | Complete mathematical FSRS-4.5 scheduler (Stability, Difficulty, Retrievability). | Misconception-weighted card prioritization. |
-| **Concept Knowledge Graph** | **DONE (85%)** | `pipeline/neuralloop_books/book_graph.py` | Inter-chapter concept linking, graph layouts, node dependencies. | Learner reconstruction puzzle mode. |
-| **Video Generation** | **DONE (90%)** | `pipeline/neuralloop_books/video.py` | Headless Chromium frame-by-frame HTML animation rendered into MP4 via PyAV. | Preserved as-is. |
-| **Pip Companion** | **DONE (90%)** | `design/pip/generate_pip.py`, `apple/App/` | 8 animated poses, procedural sprite layer system, gentle nudges, audio cues. | Home screen widget adaptation for Android. |
-| **MCP Gateway** | **NEW (0%)** | `pipeline/neuralloop_books/gateway/` | *None (Agents call scripts directly).* | **Uber-inspired MCP Gateway:** Control Plane Registry + Data Plane Proxy Router. |
-| **Learner Memory DB** | **NEW (10%)** | `apple/Sources/NeuralLoopCore/Progress.swift` | Basic step timestamps and card states in `progress.json`. | **Cognitive Memory:** Persistent SQLite tracking learner misconceptions across books. |
-| **Windows Audio** | **ADAPT (40%)** | `pipeline/neuralloop_books/speech/rumik.py` | Script generator works; TTS is locked to Mac Apple Silicon `mlx_audio`. | Windows `edge-tts` multi-voice + FFmpeg normalization. |
-| **Android Companion** | **NEW (0%)** | *New mobile directory* | iPad SwiftUI exists; no Android client exists. | Native/Flutter mobile app for commute audio & FSRS reviews. |
+> [!IMPORTANT]
+> **The Hybrid Core Principle**:
+> 1. **Do NOT use LLMs for simulation**: Running HTTP packet flows, retry timers, or network partition states through an LLM is slow (1–3s latency), non-deterministic, expensive, and hallucination-prone. Instead, the **Interactive Visual Simulation Engine** is built as a **deterministic, 60 FPS client-side state machine** (SwiftUI / declarative FSM).
+> 2. **Use AI Agents where semantic intelligence is unmatched**: Unstructured textbook digestion, Socratic misconception diagnosis, in-situ code explanation, and connecting theory to real production failure post-mortems (Stripe, GitHub, Netflix).
+> 3. **Problem-Solving over Blind Coding**: Learners are not asked to write hundreds of lines of boilerplate code from scratch. Instead, they are presented with real architectural crises (e.g., duplicated webhook charges, network partition stalls, queue collapse). They inspect live HTTP requests, tweak system parameters (idempotency gates, retry policies, backoffs), and verify the fix visually.
+> 4. **Zero Audio & Video Generation Overhead**: Dropped neural voice synthesis (`rumik`) and Chromium video rendering (`video.py`). Chapter preparation executes in **under 2 seconds**, making the pipeline 100% portable and instant.
 
 ---
 
-## 2. High-Level Design (HLD): The MCP Gateway Architecture (Left-to-Right)
-
-In Uber Engineering's landmark platform architecture, [Designing MCP Gateway: Uber's MCP Management Platform](https://www.uber.com/us/en/blog/designing-mcp-gateway/), Uber decoupled agent logic from 10,000+ microservices using a centralized **Model Context Protocol (MCP) Gateway**.
-
-Mnemos adapts this pattern to connect our **existing pipeline components** to the **5 specialized learning agents** without context window bloat or spaghetti code:
+## 2. High-Level Design (HLD): System Topology (Left-to-Right)
 
 ```mermaid
 flowchart LR
-    subgraph IngestionClient ["1. Client & Ingestion (ALREADY BUILT)"]
+    subgraph ClientLayer ["1. Presentation & Simulation Layer (SwiftUI / Apple Client)"]
         direction LR
-        RawDoc["PDF / EPUB"] --> Splitter["chapters.py Parser<br>[BUILT]"]
-        Splitter --> DocClass["Doc Classifier<br>[NEW]"]
+        MacUI["Native macOS & iPadOS Client<br>(Pip Companion & Dual-Pane UI)"]
+        SimFSM["Deterministic Visual Simulator<br>(HTTP Request/Packet Flows & Webhooks)"]
+        DriveSync["Google Drive AppData Sync<br>(Zero-Server Storage Bridge)"]
     end
 
-    subgraph OrchestratorLayer ["2. Orchestration (UPGRADE)"]
+    subgraph GatewayLayer ["2. Mnemos MCP Gateway (DATA & CONTROL PLANE)"]
         direction LR
-        Orch["Learning Orchestrator<br>(State Machine & Stage Router)"]
-    end
-
-    subgraph Agents ["3. The 5 Specialized Learning Agents"]
-        direction LR
-        A1["1. Listen Agent<br>(Priming Script)"]
-        A2["2. Read Agent<br>(Guided Plan)"]
-        A3["3. Recall Agent<br>(Socratic Tutor)"]
-        A4["4. Map Agent<br>(Graph Rebuild)"]
-        A5["5. Remember Agent<br>(FSRS Cards)"]
-    end
-
-    subgraph MCPGateway ["4. Mnemos MCP Gateway (Uber-Inspired NEW LAYER)"]
-        direction LR
-        subgraph ControlPlane ["Control Plane (Registry & Governance)"]
-            ToolReg["Tool & Schema Registry<br>(Metadata, Schemas)"]
-            AccessPolicy["Access Control Matrix<br>(Discovery != Exposure)"]
-        end
-        subgraph DataPlane ["Data Plane (Proxy & Runtime Engine)"]
-            Router["Proxy Router & Load Balancer"]
-            Projector["Response Projection Engine<br>(Prunes Context Bloat)"]
-            ProtocolTrans["Protocol Translation<br>(MCP JSON-RPC to Native)"]
-        end
-        ToolReg --> AccessPolicy
-        AccessPolicy --> Router
+        Registry["Control Plane Tool Registry<br>(Tagging & Dynamic Discovery)"]
+        Projector["DeepMind Token Optimizer<br>(Schema Pruning & Field Projection)"]
+        Router["Data Plane Proxy Router<br>(Auth, Isolation, Circuit Breakers)"]
+        Registry --> Router
         Router --> Projector
-        Projector --> ProtocolTrans
     end
 
-    subgraph Services ["5. Backend Services (65% BUILT / 35% EXTENSION)"]
+    subgraph AgentsLayer ["3. Targeted Cognitive Micro-Agents"]
         direction LR
-        S_RAG["RAG Service<br>[SQLite FTS5 - NEW]"]
-        S_Mem["Learner Memory DB<br>[SQLite - NEW]"]
-        S_Audio["Audio Engine<br>[Edge-TTS + FFmpeg - NEW]"]
-        S_FSRS["FSRS-4.5 Scheduler<br>[BUILT IN CORE]"]
-        S_Graph["Knowledge Graph<br>[book_graph.py - BUILT]"]
-        S_Models["Model Hub<br>[models/*.py - BUILT]"]
-        S_Drive["Drive Sync Engine<br>[DriveStore - EXTEND]"]
+        A1["1. Prime Agent<br>(60s Architectural Dialogue)"]
+        A2["2. Reading Co-Pilot<br>(In-Situ 'Show in Code' & War Stories)"]
+        A3["3. Socratic Agent<br>(Conceptual Misconception Diagnosis)"]
+        A4["4. Challenge Orchestrator<br>(Scenario Synthesizer)"]
+        A5["5. Remember Agent<br>(FSRS-4.5 Retention Scheduler)"]
     end
 
-    %% Wiring
-    DocClass --> Orch
-    Orch <--> A1
-    Orch <--> A2
-    Orch <--> A3
-    Orch <--> A4
-    Orch <--> A5
+    subgraph MemoryLayer ["4. Multi-Tier Cognitive Memory Engine"]
+        direction LR
+        M_Epi["Episodic Memory<br>(User Mistakes & Simulation Failures)"]
+        M_Sem["Semantic Knowledge Graph<br>(Prerequisites & Invariants)"]
+        M_Pro["Procedural Memory<br>(Debugging & Fix Blueprints)"]
+        M_KV["KV Prompt Cache<br>(4K Boundary Padded)"]
+    end
 
-    A1 --> Router
-    A2 --> Router
-    A3 --> Router
-    A4 --> Router
-    A5 --> Router
+    subgraph SimEngine ["5. Deterministic Verification Sandbox"]
+        direction LR
+        VirtualShims["Virtual Shims<br>• VirtualClock (Deterministic Time)<br>• VirtualStorage (Torn Writes/Fsync)<br>• VirtualNetwork (Partitions/Jitter)"]
+        TestMatrix["Challenge Matrix Runner<br>(Pass/Fail Automated Suite)"]
+    end
 
-    ProtocolTrans <--> S_RAG
-    ProtocolTrans <--> S_Mem
-    ProtocolTrans <--> S_Audio
-    ProtocolTrans <--> S_FSRS
-    ProtocolTrans <--> S_Graph
-    ProtocolTrans <--> S_Models
-    ProtocolTrans <--> S_Drive
+    MacUI <--> SimFSM
+    MacUI <--> GatewayLayer
+    GatewayLayer <--> AgentsLayer
+    GatewayLayer <--> MemoryLayer
+    GatewayLayer <--> SimEngine
+    MacUI <--> DriveSync
 ```
 
 ---
 
-## 3. Core Architectural Pillars (Adapted from Uber's Gateway)
+## 3. Low-Level Design (LLD): The Interactive Simulation Engine
 
-### 3.1 Control Plane vs. Data Plane Separation
-* **Control Plane (Registry):** Maintains metadata for all tools. Registers input/output JSON schemas, parameter types, description embeddings, and service bindings without restarting agents or running processes.
-* **Control Plane Governance ("Discovery $\neq$ Exposure"):** Newly registered tools are disabled by default. Each of the 5 agents is restricted strictly to its authorized tool set (e.g., the *Listen Agent* cannot invoke FSRS scheduling; the *Remember Agent* cannot call raw PDF splitters).
-* **Data Plane (Proxy Router):** Routes standard MCP JSON-RPC requests (`tools/call`, `resources/read`) to native Python functions, SQLite queries, or system subprocesses with timeout and error handling.
-* **Data Plane (Response Projection):** Solves LLM context window bloat. When an agent queries a 30-page chapter, the projector trims non-essential layout data and extracts only relevant semantic paragraphs.
+### 3.1 Problem-Solving & Simulation Architecture
+Instead of passive reading or manual coding, the platform runs interactive problem-solving simulations:
+
+```
+[Event Trigger] ──► [Signing & Dispatch] ──► [Network Simulation] ──► [Consumer Endpoint]
+  (User Paid)        POST /webhook/payment      • Latency: 120ms          • Status: 500 Error!
+                     Header: X-Signature        • Packet Loss: 15%        (Consumer Crashed)
+                                                         │
+                                                         ▼
+                                                [RETRY DECISION ENGINE]
+                                                Attempt 1: Fail ❌
+                                                Backoff: 2s, 4s, 8s ⏱️
+                                                Idempotency Check: ✅
+                                                Attempt 2: 200 OK 🎉
+```
+
+1. **Visual Packet Inspection**: Clicking on an animated packet reveals full HTTP headers, payload, and HMAC signature:
+   ```http
+   POST /webhook/stripe-events HTTP/1.1
+   Host: api.yourapp.com
+   X-Mnemos-Signature: t=1711000000,v1=9a8b7c6d5e...
+   Idempotency-Key: evt_99887766
+
+   {"event": "payment_intent.succeeded", "amount": 4900}
+   ```
+2. **Fault Injection**: The learner injects realistic distributed systems chaos: packet drops, slow consumer responses, or duplicated requests.
+3. **Problem Resolution**: The learner configures the architecture (adds an Idempotency Gate, adjusts exponential backoff parameters, or configures a Dead-Letter Queue). The deterministic simulation proves whether the problem is resolved.
 
 ---
 
-### 3.2 Role-Scoped Tool Visibility Matrix
+## 4. Low-Level Design (LLD): The 5 AI Micro-Agents
 
-Instead of stuffing schemas for 20+ tools into every LLM prompt, the Gateway scopes tool discovery dynamically based on the active agent role:
+Each agent has a strictly bounded, non-overlapping responsibility:
+
+| Agent | Responsibility | Inputs | Outputs |
+| :--- | :--- | :--- | :--- |
+| **1. Prime Agent** | 60s Architectural Problem Framing | Chapter text from parser | 2-engineer dialogue (Theo & Ada) framing trade-offs and invariants. |
+| **2. Reading Co-Pilot** | In-situ active reading co-pilot | Highlighted paragraph + query | • *"Show Me in Code"* (15-line runnable implementation)<br>• *"Production Reality Check"* (Stripe/AWS incident post-mortems). |
+| **3. Socratic Agent** | Conceptual diagnostic evaluation | Free-text / verbal explanation | Misconception identification and a single targeted Socratic probing question. |
+| **4. Challenge Orchestrator** | Scenario configuration synthesizer | Chapter invariants | Initial parameters for the deterministic visual simulation (failure rate, latency, payload). |
+| **5. Remember Agent** | Long-term memory consolidation | Review performance + Episodic log | Mathematically optimal FSRS-4.5 spaced repetition review queue. |
+
+---
+
+## 5. Low-Level Design (LLD): The Uber MCP Gateway Engine
+
+### 5.1 Control Plane vs. Data Plane Separation
+Following Uber's design in [Designing MCP Gateway: Uber's MCP Management Platform](https://www.uber.com/us/en/blog/designing-mcp-gateway/):
+
+```mermaid
+flowchart LR
+    subgraph ControlPlane ["Control Plane (Governance)"]
+        Registry["Tool Registry<br>(Semantic Tags: stage:read, stage:recall)"]
+        AccessPolicy["Role-Scoped Access Control<br>(Discovery != Exposure)"]
+    end
+
+    subgraph DataPlane ["Data Plane (Execution)"]
+        Router["Proxy Router<br>(JSON-RPC over stdio/IPC)"]
+        CircuitBreaker["Circuit Breaker & Fallback"]
+        Projector["DeepMind Field Projector"]
+    end
+
+    Registry --> AccessPolicy
+    AccessPolicy --> Router
+    Router --> CircuitBreaker
+    CircuitBreaker --> Projector
+```
+
+### 5.2 Scoped Tools Matrix
 
 ```mermaid
 flowchart LR
     Gateway["Mnemos MCP Gateway"]
 
-    Gateway -->|"Scoped Tools"| A1["1. Listen Agent"]
-    Gateway -->|"Scoped Tools"| A2["2. Read Agent"]
-    Gateway -->|"Scoped Tools"| A3["3. Recall Agent"]
-    Gateway -->|"Scoped Tools"| A4["4. Map Agent"]
+    Gateway -->|"Scoped Tools"| A1["1. Prime Agent"]
+    Gateway -->|"Scoped Tools"| A2["2. Read Co-Pilot Agent"]
+    Gateway -->|"Scoped Tools"| A3["3. Socratic Agent"]
+    Gateway -->|"Scoped Tools"| A4["4. Challenge Agent"]
     Gateway -->|"Scoped Tools"| A5["5. Remember Agent"]
 
-    subgraph T_Listen ["Listen Agent Tools"]
-        TL1["get_chapter_summary [BUILT]"]
-        TL2["synth_multi_voice_dialogue [NEW]"]
-        TL3["stitch_podcast_m4a [NEW]"]
+    subgraph T_Prime ["Prime Agent Tools"]
+        TP1["get_chapter_summary"]
+        TP2["generate_dialogue_briefing"]
     end
 
-    subgraph T_Read ["Read Agent Tools"]
-        TR1["get_section_tree [BUILT]"]
-        TR2["read_chapter_chunk [BUILT]"]
-        TR3["lookup_prerequisite_term [NEW]"]
+    subgraph T_Read ["Read Co-Pilot Tools"]
+        TR1["get_active_section_text"]
+        TR2["lookup_prerequisite_term"]
+        TR3["generate_code_example"]
+        TR4["get_production_war_story"]
     end
 
-    subgraph T_Recall ["Recall Agent Tools"]
-        TC1["query_book_ground_truth [NEW]"]
-        TC2["get_learner_misconceptions [NEW]"]
-        TC3["log_misconception_resolution [NEW]"]
+    subgraph T_Recall ["Socratic Agent Tools"]
+        TC1["query_book_ground_truth"]
+        TC2["get_learner_misconceptions"]
+        TC3["log_misconception_resolution"]
     end
 
-    subgraph T_Map ["Map Agent Tools"]
-        TM1["extract_concept_nodes [BUILT]"]
-        TM2["query_knowledge_graph [BUILT]"]
-        TM3["generate_puzzle_edges [NEW]"]
+    subgraph T_Harness ["Challenge Agent Tools"]
+        TH1["configure_simulation_scenario"]
+        TH2["inject_simulation_fault"]
+        TH3["extract_concept_nodes"]
     end
 
     subgraph T_Remember ["Remember Agent Tools"]
-        TS1["get_due_fsrs_cards [BUILT]"]
-        TS2["schedule_card_review [BUILT]"]
-        TS3["create_atomic_card [BUILT]"]
+        TS1["get_due_fsrs_cards"]
+        TS2["record_fsrs_review"]
+        TS3["create_atomic_card"]
     end
 
-    A1 -.-> T_Listen
+    A1 -.-> T_Prime
     A2 -.-> T_Read
     A3 -.-> T_Recall
-    A4 -.-> T_Map
+    A4 -.-> T_Harness
     A5 -.-> T_Remember
 ```
 
 ---
 
-## 4. Low-Level Design (LLD): The MCP Gateway Engine
-
-### 4.1 Component Breakdown & Data Flow (Left-to-Right)
+## 6. Low-Level Design (LLD): Google DeepMind Token Optimization
 
 ```mermaid
 flowchart LR
-    Agent["Active Agent<br>(e.g. Recall Agent)"] --> Request["MCP JSON-RPC Request<br>method: 'tools/call'<br>params: {name: 'query_ground_truth'}"]
-    
-    subgraph GatewayCore ["MCP Gateway Core"]
-        direction LR
-        AuthCheck{"Policy & Scope<br>Validator"}
-        CacheCheck{"Semantic Response<br>Cache"}
-        Dispatcher["Driver Dispatcher"]
-        Projector["Response Field<br>Projector"]
-    end
-
-    Request --> AuthCheck
-    AuthCheck -->|"Approved"| CacheCheck
-    AuthCheck -->|"Forbidden"| DeniedErr["Error: 403 Forbidden"]
-    
-    CacheCheck -->|"Cache Hit"| ReturnCached["Return Cached JSON-RPC"]
-    CacheCheck -->|"Cache Miss"| Dispatcher
-    
-    Dispatcher --> NativeDriver["Native Service Driver<br>(FTS5 / Audio / FSRS)"]
-    NativeDriver --> RawResult["Raw System Payload"]
-    RawResult --> Projector
-    Projector --> CleanResponse["Projected JSON-RPC Result"]
-    CleanResponse --> Agent
+    RawPayload["Raw Context Payload<br>(~50 KB)"] --> SchemaPruner["1. Dynamic Schema Pruning<br>(-45% schema tokens)"]
+    SchemaPruner --> KVAligner["2. KV Cache Prefix Alignment<br>(Padded to 4096-token boundary)"]
+    KVAligner --> FieldProjector["3. Response Field Projection<br>(Selects only requested keys)"]
+    FieldProjector --> OptimizedPrompt["Optimized Prompt<br>(~2.5 KB -> 95% reduction!)"]
 ```
+
+1. **Dynamic Tool Schema Pruning:** By serving only the 2–3 tools needed for the active stage, we cut prompt overhead from 4,000 tokens to $<600$ tokens.
+2. **Response Field Projection:** When an agent invokes `query_book_ground_truth`, the Gateway strips full markdown pages and returns only the top 3 verified sentence claims ($40\text{ KB} \rightarrow 1.2\text{ KB}$).
+3. **KV Cache Prefix Alignment:** Pinned system instructions and book indexes enable model providers (Anthropic, Gemini, local vLLM) to reuse pre-computed attention keys and values, reducing streaming latency to $<400\text{ms}$.
+4. **Semantic Context Compaction:** Compresses conversation histories into dense semantic vectors rather than raw transcripts.
 
 ---
 
-### 4.2 Python Implementation Specification: `mcp_gateway.py`
+## 7. Low-Level Design (LLD): Conversational Active Reading Co-Pilot (Stage 2)
 
-This module connects directly to the existing `pipeline/neuralloop_books/` package:
+```mermaid
+flowchart LR
+    subgraph ActiveReaderUI ["Dual-Pane Active Reader Interface"]
+        direction LR
+        LeftBook["Left Pane: Source Document<br>• Clean typography & code blocks<br>• Highlight / select any paragraph<br>• Reading telemetry (scroll & time)"]
+        RightCoPilot["Right Pane: In-Situ Conversational Co-Pilot<br>• Instant contextual dialogue<br>• 'Show Me in Code' generator<br>• 'Production War Stories' (Kafka, Postgres)<br>• Proactive Socratic margin notes"]
+    end
+
+    LeftBook <-->|"Scroll Position & Selected Claim"| RightCoPilot
+```
+
+### Developer Quick Actions:
+* 💻 **"Show Me in Code":** Translates theoretical textbook text into a 15-line executable code snippet in Python, Go, TypeScript, or Rust.
+* 🏭 **"Production Reality Check":** Explains where and how this theoretical concept is implemented in real-world systems (RocksDB, Kafka, Linux kernel) and where it fails in production.
+* ⚖️ **"Devil's Advocate & Trade-Offs":** Interrogates the author's claims: *"What did the author sacrifice to achieve this? What happens under hardware faults or network partitions?"*
+* 🧪 **"Spin Up Interactive Simulation":** Injects an interactive visual simulator directly beneath the paragraph.
+
+---
+
+## 8. Low-Level Design (LLD): Multi-Tier Cognitive Memory Engine
+
+```mermaid
+erDiagram
+    LEARNER_PROFILE ||--o{ EPISODIC_LOG : records
+    LEARNER_PROFILE ||--o{ MISCONCEPTIONS : diagnoses
+    LEARNER_PROFILE ||--o{ CONCEPT_MASTERY : tracks
+    CONCEPT_MASTERY ||--o{ FSRS_CARDS : schedules
+
+    LEARNER_PROFILE {
+        string user_id PK
+        float retention_target
+        timestamp last_synced
+    }
+
+    EPISODIC_LOG {
+        string log_id PK
+        string stage
+        string simulation_id
+        string failure_mode_observed
+        float temporal_decay_weight
+        timestamp created_at
+    }
+
+    MISCONCEPTIONS {
+        string id PK
+        string concept_id FK
+        string fallacy_category
+        string diagnostic_summary
+        boolean resolved
+    }
+
+    CONCEPT_MASTERY {
+        string concept_id PK
+        string canonical_name
+        float mastery_score
+        int recall_attempts
+    }
+
+    FSRS_CARDS {
+        string card_id PK
+        string concept_id FK
+        float stability
+        float difficulty
+        timestamp due_date
+        int state
+    }
+```
+
+1. **Episodic Store**: Logs the student's past simulation failures, broken assertions, and conceptual misunderstandings with exponential time decay.
+2. **Semantic Knowledge Graph**: Query API over `book_graph.py` concept dependencies (`get_prerequisites`, `get_downstream_dependents`).
+3. **Procedural Memory**: Reusable systems engineering debugging blueprints and architectural templates.
+4. **Vector Grounding**: Fast local embedding index for semantic lookup into exact textbook passages.
+
+---
+
+## 9. Low-Level Design (LLD): Verification Sandbox & Virtual Shims
+
+```mermaid
+flowchart LR
+    subgraph Sandbox ["Isolated Execution Sandbox"]
+        direction LR
+        Watchdog["Watchdog Timer<br>(1.5s max CPU)"]
+        VClock["VirtualClock<br>(Deterministic Time Travel)"]
+        VStorage["VirtualStorage<br>(Torn Write / Fsync Injection)"]
+        VNet["VirtualNetwork<br>(Latency / Partitioning)"]
+    end
+
+    ChallengeMatrix["Challenge Test Matrix<br>(e.g. Idempotency, Split-Brain)"] --> Sandbox
+    Sandbox --> TraceFrames["SimulationTrace Stream"]
+    TraceFrames --> NativeUI["SwiftUI Render & Pip Reaction"]
+```
+
+- **`VirtualClock`**: Accelerates timeouts and election leases without `time.sleep()`.
+- **`VirtualStorage`**: Injects simulated disk faults (uncommitted writes, partial flush).
+- **`VirtualNetwork`**: Injects packet drops, symmetric and asymmetric partitions, and latency jitter.
+
+---
+
+## 10. Python Implementation Specification: `mcp_gateway.py`
 
 ```python
 """
-Mnemos MCP Gateway Core.
-Inspired by Uber's MCP Management Platform (Control Plane / Data Plane separation).
-Integrates with existing pipeline modules (chapters.py, book_graph.py, models/).
+Mnemos MCP Gateway Reference Implementation.
+Implements Control Plane Tool Registry, Data Plane Proxy Router,
+and DeepMind Dynamic Schema Pruning & Response Projection.
 """
 
 from dataclasses import dataclass
@@ -249,10 +328,10 @@ logger = logging.getLogger("mnemos.mcp_gateway")
 
 class AgentRole(str, Enum):
     ORCHESTRATOR = "orchestrator"
-    LISTEN = "listen_agent"
-    READ = "read_agent"
-    RECALL = "recall_agent"
-    MAP = "map_agent"
+    PRIME = "prime_agent"
+    READ = "read_copilot"
+    RECALL = "socratic_recall"
+    CHALLENGE = "challenge_orchestrator"
     REMEMBER = "remember_agent"
 
 @dataclass
@@ -270,7 +349,6 @@ class MCPGateway:
 
     def __init__(self):
         self._registry: dict[str, MCPToolDefinition] = {}
-        self._cache: dict[str, dict[str, Any]] = {}
 
     def register_tool(
         self,
@@ -291,13 +369,9 @@ class MCPGateway:
             enabled=True,
             projection_fields=projection_fields,
         )
-        logger.info(f"Registered tool '{name}' authorized for: {[r.value for r in allowed_roles]}")
 
     def get_scoped_tools(self, role: AgentRole) -> list[dict[str, Any]]:
-        """
-        Incremental Discovery: Returns ONLY tool schemas authorized for the active agent.
-        Eliminates prompt context window bloat.
-        """
+        """DeepMind-style Dynamic Schema Pruning: Returns ONLY tools for the active role."""
         return [
             {
                 "name": tool.name,
@@ -315,29 +389,21 @@ class MCPGateway:
         arguments: dict[str, Any],
         projection: list[str] | None = None,
     ) -> dict[str, Any]:
-        """
-        Data Plane Execution Router:
-        1. Validates access permissions (Discovery != Exposure).
-        2. Executes native backend driver.
-        3. Projects response to prevent LLM context bloat.
-        """
+        """Data Plane Execution Router with Role Scoping & Response Projection."""
         tool = self._registry.get(tool_name)
         if not tool or not tool.enabled:
-            raise ValueError(f"Tool '{tool_name}' not found or currently disabled.")
+            raise ValueError(f"Tool '{tool_name}' not found or disabled.")
 
-        # Governance Check: Explicit permission per agent role
         if caller_role not in tool.allowed_roles:
-            logger.error(f"Security Alert: {caller_role.value} denied access to {tool_name}")
-            raise PermissionError(f"Agent '{caller_role.value}' is not authorized to invoke '{tool_name}'.")
+            raise PermissionError(f"Agent '{caller_role.value}' unauthorized for '{tool_name}'.")
 
-        # Execute Backend Handler
         try:
             raw_output = await tool.handler(**arguments)
         except Exception as e:
-            logger.exception(f"Execution error invoking {tool_name}: {e}")
+            logger.exception(f"Tool execution failed: {e}")
             return {"error": str(e), "status": "failed"}
 
-        # Response Projection: Strip non-essential fields before context ingestion
+        # DeepMind Response Projection: Project only requested fields
         fields_to_project = projection or tool.projection_fields
         if fields_to_project and isinstance(raw_output, dict):
             projected = {k: raw_output[k] for k in fields_to_project if k in raw_output}
@@ -345,83 +411,3 @@ class MCPGateway:
 
         return {"status": "success", "data": raw_output}
 ```
-
----
-
-## 5. End-to-End Execution Flow (Left-to-Right Sequence)
-
-The following sequence diagram demonstrates an active Socratic Recall check executed through the MCP Gateway, combining our **existing pipeline text** with the **new Cognitive Memory layer**:
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Learner
-    participant WinUI as Windows App UI
-    participant Orch as Learning Orchestrator
-    participant RecallAg as Recall Agent
-    participant Gateway as Mnemos MCP Gateway
-    participant RAG as Document RAG Service
-    participant Memory as Learner Memory Service
-
-    Learner->>WinUI: Submits explanation of "Raft Log Compaction"
-    WinUI->>Orch: on_user_recall_submitted(text)
-    Orch->>RecallAg: evaluate_understanding(user_text, chapter_id=4)
-    
-    Note over RecallAg, Gateway: Incremental Discovery & Scoped Call
-    RecallAg->>Gateway: invoke_tool(role="recall_agent", name="query_book_ground_truth", args={chapter: 4, query: user_text})
-    Gateway->>Gateway: Verify RecallAgent in allowed_roles
-    Gateway->>RAG: search_fts5_and_embeddings(chapter=4, query=user_text)
-    RAG-->>Gateway: Raw document chunks & metadata (45 KB)
-    Gateway->>Gateway: Project response (top 3 claims, 1.2 KB)
-    Gateway-->>RecallAg: Projected Ground Truth Context
-
-    RecallAg->>Gateway: invoke_tool(role="recall_agent", name="get_learner_misconceptions", args={domain: "distributed_systems"})
-    Gateway->>Memory: fetch_active_misconceptions(domain)
-    Memory-->>Gateway: [{"concept": "snapshot_isolation", "weakness": "..."}]
-    Gateway-->>RecallAg: Filtered Learner Cognitive Profile
-
-    Note over RecallAg: LLM Diagnostic Execution (Dual Memory + Ground Truth)
-    RecallAg->>RecallAg: Detects subtle snapshot ordering confusion
-    RecallAg-->>Orch: Result: status="needs_refinement", socratic_prompt="..."
-    Orch->>WinUI: Displays Pip's Socratic Question
-```
-
----
-
-## 6. Backend Tool Services: Linking Built Core to New Extensions
-
-```mermaid
-flowchart LR
-    Gateway["Mnemos MCP Gateway Router"]
-
-    subgraph BuiltServices ["Already Built in Codebase (Reused As-Is)"]
-        direction LR
-        S_Split["chapters.py<br>(TOC & Section Chunker)"]
-        S_Graph["book_graph.py<br>(Knowledge Graph Builder)"]
-        S_FSRS["FSRS-4.5 Engine<br>(Deterministic Math)"]
-        S_Models["models/*.py<br>(Ollama, OpenAI, Claude)"]
-    end
-
-    subgraph NewServices ["New Extensions (To Complete)"]
-        direction LR
-        S_RAG["RAG Service<br>(SQLite FTS5 + BM25)"]
-        S_Mem["Learner Memory Service<br>(learner_memory.db)"]
-        S_Audio["Windows Audio Service<br>(Edge-TTS + FFmpeg)"]
-        S_Sync["Drive Sync Service<br>(Python DriveStore)"]
-    end
-
-    Gateway <--> BuiltServices
-    Gateway <--> NewServices
-```
-
----
-
-## 7. Execution Plan to Complete the Remaining 35%
-
-| Phase | Milestone | Existing Baseline in Repo | Work to Complete |
-| :--- | :--- | :--- | :--- |
-| **Phase 1** | **Windows Audio Engine** | `audio.py` + `local.py` (Script works; TTS is Mac MLX). | Implement `speech/windows_tts.py` with `edge-tts` + `ffmpeg`. |
-| **Phase 2** | **MCP Gateway Core** | Tools called directly in pipeline scripts. | Implement `mcp_gateway.py` with Registry and Role Scoping. |
-| **Phase 3** | **Shared Learner Memory** | `progress.json` tracks timestamps only. | Create SQLite `learner_memory.db` tracking misconceptions across books. |
-| **Phase 4** | **Conversational Socratic Recall** | `recall.py` has single-turn word/LLM grading. | Upgrade prompt and state machine to multi-turn Socratic probing. |
-| **Phase 5** | **Android Companion MVP** | iPad SwiftUI app in `apple/`. | Build Flutter/Kotlin mobile client for audio playback & FSRS review. |

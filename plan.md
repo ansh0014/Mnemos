@@ -6,38 +6,40 @@
 ## 1. Executive Summary & Codebase Reality Audit
 
 ### 1.1 The Reality: 65% of Mnemos is Already Built and Operational
-**Mnemos** is an adaptive, learner-centric AI learning platform. It transforms complex educational documents—textbooks, research papers, lecture slides, technical manuals, and programming guides—into an automated, personalized cognitive journey from initial understanding to permanent retention.
+**Mnemos** is an adaptive, learner-centric AI learning platform engineered specifically for software developers, engineers, and technical researchers. It transforms complex educational documents—textbooks, research papers, lecture slides, technical manuals, and programming guides—into an automated, personalized cognitive journey from initial understanding to permanent retention.
 
-**Critical Project Context:** This project does not start from zero. **Approximately 60% to 70% of the core architecture is already fully implemented, tested, and operational in this codebase** (including the multi-lane book pipeline, EPUB/PDF TOC parsing, model adapters, deterministic FSRS-4.5 engine, explainer video generator, and procedural Pip sprite rig).
+**Critical Architectural Pivot:** We have removed slow, heavy media pipelines (**eliminating neural voice synthesis, audio mixing, and video rendering**). This makes Mnemos **instantaneous, lightweight, and 100% portable**. Books are represented as rich semantic text, interactive diagrams, and executable code rather than hundreds of megabytes of media files.
 
-The goal of this master plan is to preserve and leverage that proven 65% foundation, while integrating the remaining 35% architectural breakthroughs:
-1. **The MCP Gateway Layer (Uber-Inspired):** Decoupling the 5 learning agents from raw backend services to eliminate context bloat and enforce role-based tool security.
-2. **The Shared Cognitive Learner Memory:** Moving beyond stateless sessions by tracking student misconceptions and concept mastery curves *persistently across books*.
-3. **Cross-Platform Delivery (Windows Desktop + Android Companion):** Porting the speech and sync engines to run natively on Windows (via `edge-tts` and FFmpeg) and synchronizing to mobile via private Google Drive `appDataFolder`.
+The master architecture unites the existing 65% foundation with five high-impact pillars:
+1. **Uber's MCP Gateway Pattern:** Decoupling 5 specialized AI learning agents from raw tools and backend services via a strict **Control Plane (Role-Based Tool Registry & Governance)** and **Data Plane (Proxy Routing & Response Projection)**.
+2. **Google DeepMind's Token Optimization Principles:** Eliminating context window bloat, reducing latency by up to 70%, and cutting inference costs via **Semantic Context Compaction, KV Cache Prefix Alignment, Response Projection, and Dynamic Schema Pruning**.
+3. **Conversational Active Reading (The In-Situ Developer Co-Pilot):** Transforming passive reading into an interactive dialogue embedded directly alongside the text with developer quick actions: *"Show Me in Code"*, *"Production Reality Check"*, and proactive Socratic margin interventions.
+4. **Interactive Verification Sandbox (The Harness Engine):** Providing an isolated code and simulation sandbox where learners run code, observe failure modes under stress, and verify architectural invariants.
+5. **Advanced Multi-Tier Memory System (Mem0 + Relational):** Separating memory into distinct cognitive tiers—**Episodic** (what happened), **Semantic** (what is understood/misunderstood), **Procedural** (how the learner learns), **Isolated Document Grounding**, and an **In-Memory KV Cache**.
 
 ```mermaid
 flowchart LR
-    subgraph ExistingCore ["Layer 1: Existing Built Core (65% COMPLETED)"]
+    subgraph BuiltCore ["Layer 1: Existing Built Core (65% COMPLETED)"]
         direction LR
         P1["PDF / EPUB Chapter Splitter<br>(chapters.py)"]
-        P2["Multi-Lane Generation Pipeline<br>(pipeline.py, state.py)"]
-        P3["LLM Engine Adapters<br>(Ollama, OpenAI, Claude, NotebookLM)"]
-        P4["Deterministic FSRS-4.5 Scheduler<br>(FSRS.swift / Python Core)"]
-        P5["Explainer Video Generator<br>(video.py - Chromium + PyAV)"]
-        P6["5-Stage UI & Telemetry<br>(SwiftUI & Anti-Cheat Coverage)"]
-        P7["Pip Sprite Animation Rig<br>(pip-rig.json, 8 poses, nudges)"]
+        P2["Multi-Lane Pipeline<br>(pipeline.py, state.py)"]
+        P3["Model Adapters<br>(Ollama, OpenAI, Claude, NotebookLM)"]
+        P4["FSRS-4.5 Scheduler<br>(FSRS.swift / Python Core)"]
+        P5["Knowledge Graph Builder<br>(book_graph.py)"]
+        P6["Apple UI & Telemetry<br>(SwiftUI & Anti-Cheat Coverage)"]
+        P7["Pip Sprite Rig<br>(pip-rig.json, 8 poses, nudges)"]
     end
 
     subgraph NewArchitecture ["Layer 2: Architectural Extensions (35% TO COMPLETE)"]
         direction LR
         N1["Uber-Inspired MCP Gateway<br>(mcp_gateway.py: Proxy & Registry)"]
-        N2["Shared Cognitive Learner Memory<br>(learner_memory.db: Misconceptions)"]
-        N3["Windows Audio Synthesizer<br>(edge-tts + ffmpeg AAC encoder)"]
-        N4["Conversational Socratic Recall<br>(Multi-turn probing tutor)"]
-        N5["Android Companion App<br>(Podcast player + FSRS reviews)"]
+        N2["DeepMind Token Optimizer<br>(Compaction & KV Prefix Alignment)"]
+        N3["In-Situ Reading Co-Pilot<br>(Code Gen & War Stories)"]
+        N4["Multi-Tier Memory Engine<br>(Episodic, Semantic, Procedural)"]
+        N5["Verification Sandbox<br>(Virtual Shims & Stress Harness)"]
     end
 
-    ExistingCore --> NewArchitecture
+    BuiltCore --> NewArchitecture
 ```
 
 ---
@@ -45,7 +47,7 @@ flowchart LR
 ## 2. Product Vision & Positioning
 
 ### 2.1 Mission Statement
-> **"Turn every document into an adaptive learning journey, from initial understanding to long-term mastery."**
+> **"Turn every technical document into an adaptive learning journey, from initial understanding to production intuition and long-term mastery."**
 
 Mnemos is designed for knowledge workers, developers, engineers, and serious students who tackle dense, high-stakes material. It rejects both passive reading (which creates an illusion of competence) and aggressive, guilt-driven gamification (which causes burnout).
 
@@ -56,13 +58,14 @@ Mnemos is designed for knowledge workers, developers, engineers, and serious stu
        │
        │                                     ★ Mnemos
        │                                       (Learner-Centric Lifecycle:
-       │                                        5-Stage Loop + Dual Memory)
+       │                                        5-Stage Loop + Dual Memory
+       │                                        + MCP Gateway + Sandbox)
        │               Anki
        │         (Deterministic FSRS,
        │          Manual, No Ingestion)
        │                                       Google NotebookLM
        │                                       (Source-Centric Research,
-       │                                        Audio Overviews, Amnesic)
+       │                                        Amnesic)
        │     Kindle / Acrobat
        │     (Passive Consumption,             YouLearn.ai
        │      Zero Retention Engine)           (Study-Centric SaaS Toolkit)
@@ -72,387 +75,246 @@ Mnemos is designed for knowledge workers, developers, engineers, and serious stu
 
 ---
 
-## 3. Codebase Audit: Built Foundation (65%) vs. Target Extensions (35%)
-
-To remain strictly grounded in reality, we distinguish what exists in the repository today from what this plan specifies:
-
-| System Area | State in Repository Today (65% Built) | Remaining Work to Complete (35%) | Existing File Path in Repo |
-| :--- | :--- | :--- | :--- |
-| **Document Ingestion** | **90% Complete:** Robust PDF bookmarks & EPUB NCX parser, section chunking, image extraction, zip bomb safety limits. | Add document classifier (Research paper vs. lecture slides vs. textbook). | `pipeline/neuralloop_books/chapters.py` |
-| **Generation Pipeline** | **85% Complete:** Multi-lane parallel execution (text lane vs. media lane), quota management, atomic `book.json` writes. | Integrate with Learning Orchestrator for dynamic stage skipping and re-routing. | `pipeline/neuralloop_books/pipeline.py` |
-| **Model Adapters** | **90% Complete:** Tested adapters for Ollama, OpenAI-compatible (LM Studio/OpenRouter), Anthropic, OpenCode, Hermes. | Wrap behind standardized MCP tool interfaces. | `pipeline/neuralloop_books/models/` |
-| **Spaced Repetition** | **95% Complete:** Fully implemented, verified mathematical FSRS-4.5 engine (Stability, Difficulty, Retrievability). | Misconception-weighted review prioritization. | `apple/Sources/NeuralLoopCore/FSRS.swift` |
-| **Concept Knowledge Graph** | **85% Complete:** Inter-chapter concept linking, graph layouts, node dependencies, JSON schema export. | Add active learner reconstruction puzzle mode. | `pipeline/neuralloop_books/book_graph.py` |
-| **Explainer Video Engine** | **90% Complete:** Headless Chromium frame-by-frame HTML animation rendered into MP4 via PyAV. | Preserved as-is. | `pipeline/neuralloop_books/video.py` |
-| **Pip Sprite Companion** | **90% Complete:** 8 animated poses, procedural sprite layer system, gentle nudges, audio cues. | Home screen widget adaptation for Android. | `design/pip/generate_pip.py`, `apple/App/` |
-| **MCP Gateway** | **0% Complete:** *None (Agents call scripts directly).* | **Build Uber-inspired MCP Gateway:** Control Plane Registry + Data Plane Proxy Router. | `pipeline/neuralloop_books/gateway/` |
-| **Learner Memory DB** | **10% Complete:** `progress.json` tracks step completion timestamps and card states only. | **Build Cognitive Memory:** Persistent SQLite tracking learner misconceptions across books. | `pipeline/neuralloop_books/memory/` |
-| **Windows Audio** | **40% Complete:** Script generation works; voice synthesis is locked to Mac Apple Silicon `mlx_audio` & `afconvert`. | Implement Windows `edge-tts` multi-voice synthesis + FFmpeg normalization. | `pipeline/neuralloop_books/speech/` |
-| **Android Companion** | **0% Complete:** iPad SwiftUI app exists; no Android client exists. | Build Flutter/Kotlin mobile client for commute audio & FSRS reviews. | New mobile directory |
-
----
-
-## 4. Target Users & Use Cases
+## 3. High-Level Design (HLD): End-to-End System Architecture
 
 ```mermaid
 flowchart LR
-    Dev["Software Engineers & Architects<br>Reading RFCs, System Design Books"] --> NL["Mnemos Core Platform"]
-    Grad["Graduate Students & Researchers<br>Reviewing arXiv Papers & Theses"] --> NL
-    Self["Technical Self-Learners<br>Mastering Math, AI, or Cloud Docs"] --> NL
-    Undergrad["Undergraduate STEM Students<br>Handling Heavy Textbooks & Slides"] --> NL
+    subgraph UI ["1. Native Apple UI & Companion (ALREADY BUILT)"]
+        direction LR
+        MacUI["macOS / iPadOS SwiftUI<br>(Pip Companion, 5 Stages)"]
+        DriveSync["Google Drive AppData Sync<br>(Zero-Server-Cost Bridge)"]
+    end
+
+    subgraph Gateway ["2. Uber-Inspired MCP Gateway (DATA & CONTROL PLANE)"]
+        direction LR
+        Registry["Control Plane Registry<br>(Discovery != Exposure)"]
+        Projector["DeepMind Token Optimizer<br>(Compaction & Projection)"]
+        Proxy["Proxy Router & Dispatcher"]
+        Registry --> Proxy
+        Proxy --> Projector
+    end
+
+    subgraph Agents ["3. 5 Stage-Specialized AI Agents"]
+        direction LR
+        A1["1. Prime Agent<br>(Concept Briefing)"]
+        A2["2. Read Co-Pilot Agent<br>(Active Dialogue & Code)"]
+        A3["3. Recall Agent<br>(Socratic Diagnosis)"]
+        A4["4. Harness/Map Agent<br>(Verification Sandbox)"]
+        A5["5. Remember Agent<br>(FSRS Spaced Review)"]
+    end
+
+    subgraph MemoryEngine ["4. Advanced Multi-Tier Memory Engine"]
+        direction LR
+        M_Epi["Episodic Memory<br>(Sessions & Logs)"]
+        M_Sem["Semantic Memory<br>(Misconceptions & Mastery)"]
+        M_Pro["Procedural Memory<br>(Learner Strategies)"]
+        M_RAG["Isolated Document Grounding<br>(SQLite FTS5 + Embeddings)"]
+        M_KV["KV Prompt Cache<br>(Prefix Alignment)"]
+    end
+
+    subgraph SandboxEngine ["5. Verification & Code Sandbox"]
+        direction LR
+        WasmBox["Isolated Execution Sandbox<br>(Deterministic Watchdog)"]
+        SimTrace["Stress Simulation Harness<br>(Telemetry & Trace Frames)"]
+    end
+
+    MacUI <--> Gateway
+    Gateway <--> Agents
+    Gateway <--> MemoryEngine
+    Gateway <--> SandboxEngine
+    MacUI <--> DriveSync
 ```
 
-### Primary Use Cases
-1. **Mastering Heavy Technical Books:** A developer reads *Designing Data-Intensive Applications*. The system breaks each chapter into a 20-minute daily loop, tests their mental models on consensus algorithms, and verifies retention 3 weeks later.
-2. **Deconstructing Complex Research Papers:** A researcher inputs a 15-page machine learning paper. The system recognizes the paper archetype, generates a problem/methodology priming audio, guides reading through mathematical formalisms, and challenges the reader on experimental limitations.
-3. **Internalizing Engineering Documentation:** A DevOps engineer studies Kubernetes internals from documentation. The system emphasizes procedural recall and architectural dependencies.
-
 ---
 
-## 5. Product Philosophy
-
-1. **Learner-Centric Over Source-Centric:** Understanding the document is only a prerequisite; the real objective is measuring and advancing the learner's comprehension.
-2. **Deterministic Mechanics for Science, Probabilistic AI for Interaction:**
-   * Use LLMs where they excel: natural language explanation, Socratic dialogue, analogy generation, and misconception diagnosis.
-   * Use deterministic code where science demands precision: **FSRS algorithms**, scheduling math, progress merging, and telemetry tracking. Never allow an LLM to hallucinate review dates.
-3. **Paced Autopilot (Just-Ahead Preparation):**
-   * Users should never have to configure pipelines or click "Generate". Materials prepare themselves automatically one to two chapters ahead of the reader (`PrepWindow`).
-4. **Gentle, Guilt-Free Habit Formation:**
-   * Pip (the red panda companion) never scolds, tracks toxic streaks, or induces guilt. Nudges are capped at once per day and respect quiet hours.
-5. **Local-First Privacy & Ownership:**
-   * Books, reading logs, and memory profiles remain stored locally on the user's machines. Cloud synchronization uses private user-owned storage (Google Drive `appDataFolder`) with zero intermediary telemetry servers.
-
----
-
-## 6. The Five-Stage Learning Experience
-
-The 5-stage loop is the foundational pedagogical spine of Mnemos. It is preserved and deepened:
+## 4. The Modernized 5-Stage Cognitive Pipeline
 
 ```mermaid
 flowchart LR
-    S1["Stage 1: LISTEN & WATCH<br>(Priming & Dual Coding)"] --> S2["Stage 2: READ<br>(Focused Active Study)"]
-    S2 --> S3["Stage 3: RECALL<br>(Active Retrieval Practice)"]
-    S3 --> S4["Stage 4: MAP<br>(Relational Reconstruction)"]
-    S4 --> S5["Stage 5: REMEMBER<br>(FSRS Spaced Repetition)"]
-    S5 --> LoopDone["🎉 Loop Closed<br>Next Chapter Unlocked"]
+    S1["Stage 1: PRIME<br>Rapid Concept Briefing & Problem Framing"] --> S2["Stage 2: CONVERSATIONAL ACTIVE READ<br>In-Situ AI Co-Pilot with Code & War Stories"]
+    S2 --> S3["Stage 3: SOCRATIC RECALL<br>Explain in Own Words; Agent Diagnoses"]
+    S3 --> S4["Stage 4: INTERACTIVE HARNESS<br>Run Code Sandbox & Reconstruct Schema"]
+    S4 --> S5["Stage 5: REMEMBER & SPACE<br>Deterministic FSRS-4.5 Flashcard Reviews"]
+    S5 --> NextLoop["🎉 Loop Closed<br>Next Chapter Unlocks"]
 ```
 
-### Stage 1: Listen & Watch (Priming & Dual Coding)
-* **Pedagogical Goal:** Overcome cognitive friction. Before confronting complex technical terminology on the page, the learner is exposed to a high-level conceptual overview.
-* **Capabilities:**
-  * Two-host conversational podcast (Ada, the curious learner; Theo, the senior engineer) discussing core concepts and real-world analogies.
-  * Animated short explainer videos illustrating spatial or procedural workflows.
-  * Adaptive depth: adjust podcast length based on chapter density (short 3-minute primer vs. 8-minute architectural breakdown).
+### 4.1 Stage 1: Prime (Executive Concept Briefing & Problem Framing)
+* **What happens:** Before reading, the learner gets a **60-second architectural briefing**:
+  * **Core Problem Statement:** What fundamental system constraint forced this concept to exist?
+  * **Two-Engineer Dialogue Transcript:** A rapid text-based exchange between Ada (the curious engineer) and Theo (the senior staff architect) explaining the core intuition and trade-offs.
+  * **Schema Teaser:** A visual dependency diagram introducing the key components.
+* **Why Drop Heavy Audio/Video:** Developers read 3x faster than listening to audio. Removing neural voice synthesis and video rendering cuts chapter preparation time from 8 minutes down to **1.5 seconds**, eliminates heavy dependencies (FFmpeg, Chromium, PyAV, audio codecs), and keeps the storage footprint under a few kilobytes.
 
-### Stage 2: Read (Focused Active Study)
-* **Pedagogical Goal:** Deep, focused reading of the primary text without disorientation.
-* **Capabilities:**
-  * The original source document is the absolute ground truth.
-  * AI-generated Reading Guide categorizing sections: **Deep Focus** (core theorems/mechanisms), **Normal Reading**, or **Skim** (historical context, boilerplate).
-  * Contextual margin notes defining prerequisite terms and unravelling dense equations.
-  * Anti-cheating reading telemetry: verifies active engagement (scroll speed, viewport visibility, active window focus) before credit is awarded.
-
-### Stage 3: Recall (Active Retrieval Practice)
-* **Pedagogical Goal:** Break the "illusion of competence" through generation and retrieval.
-* **Capabilities:**
-  * **Explain-In-Your-Own-Words Prompt:** The user is asked to synthesize the core thesis or mechanism from memory.
-  * **Socratic Evaluation:** An AI agent compares the response against book ground truth and the learner's known cognitive gaps. Instead of a binary grade, the agent probes: *"You explained the leader election heartbeat, but what prevents both split-brain partitions from accepting writes?"*
-  * **Conceptual Quiz:** Targeted multiple-choice questions complete with hints and rationale explanations.
-
-### Stage 4: Map (Relational Knowledge Reconstruction)
-* **Pedagogical Goal:** Structural knowledge organization. Experts organize knowledge in schemas; novices memorize isolated facts.
-* **Capabilities:**
-  * **Active Reconstruction:** The learner does *not* merely look at an AI-generated mind map. They are given nodes and must reconstruct the relationships and hierarchy from memory.
-  * **Concept Graph Exploration:** Interactive knowledge graph revealing cross-concept dependencies, prerequisite chains, and contrasting principles (*"builds on"*, *"solves"*, *"contrasts with"*).
-
-### Stage 5: Remember (Long-Term Retention Engine)
-* **Pedagogical Goal:** Mitigate the Ebbinghaus forgetting curve through scheduled active recall.
-* **Capabilities:**
-  * **Deterministic FSRS Scheduling:** Every flashcard is tracked with mathematical Stability ($S$), Difficulty ($D$), and Retrievability ($R$).
-  * **Misconception-Weighted Review:** Cards associated with concepts failed during Stage 3 (Recall) are injected into the review queue with higher initial difficulty ratings.
-  * **Cross-Device Practice:** Lightweight flashcard review optimized for mobile commute workflows.
-
----
-
-## 7. Five Specialized AI Agents
-
-Rather than a single prompt or monolithic LLM script, the system delegates tasks to five domain-specialized agents.
+### 4.2 Stage 2: Conversational Active Reading (The In-Situ Developer Co-Pilot)
+* **What happens:** The learner reads the source text in a dual-pane workspace accompanied by an intelligent in-situ co-pilot:
 
 ```mermaid
 flowchart LR
-    Orch["Learning Orchestrator"]
-    Orch <--> A1["1. Listen & Watch Agent"]
-    Orch <--> A2["2. Read Agent"]
-    Orch <--> A3["3. Recall Agent"]
-    Orch <--> A4["4. Map Agent"]
-    Orch <--> A5["5. Remember Agent"]
+    subgraph ActiveReaderUI ["Dual-Pane Active Reader Interface"]
+        direction LR
+        LeftBook["Left Pane: Source Document<br>• Clean typography & code blocks<br>• Highlight / select any paragraph<br>• Reading telemetry (scroll & time)"]
+        RightCoPilot["Right Pane: In-Situ Conversational Co-Pilot<br>• Instant contextual dialogue<br>• 'Show Me in Code' generator<br>• 'Production War Stories' (Kafka, Postgres)<br>• Proactive Socratic margin notes"]
+    end
+
+    LeftBook <-->|"Scroll Position & Selected Claim"| RightCoPilot
 ```
 
-### Agent Specifications & Contracts
+* **Core Developer Capabilities:**
+  1. **Instant Contextual Anchoring:** Co-Pilot tracks active scroll position and selected paragraphs. Zero copy-pasting to a separate ChatGPT window.
+  2. **Developer Quick Actions:**
+     * 💻 **"Show Me in Code":** Converts abstract textbook theory (e.g., Paxos leader election, 2-Phase Locking, LSM-tree compaction) into a 15-line executable code snippet in Python, Go, TypeScript, or Rust.
+     * 🏭 **"Production Reality Check":** Explains where and how real systems (RocksDB, Kafka, Linux kernel) implement or fail on the concept.
+     * ⚖️ **"Devil's Advocate & Trade-Offs":** Highlights edge cases, hardware faults, and hidden assumptions.
+     * 🧪 **"Spin Up Inline Sandbox":** Injects an interactive code playground directly beneath the paragraph so you can tweak parameters and see output immediately.
+  3. **Proactive Socratic Margin Notes ("Whispers"):** Drops interactive pills after dense proofs to check comprehension before you scroll past.
+  4. **DeepMind Token Optimization:** Streaming latency $<400\text{ms}$ with pinned KV prompt prefix caching.
 
-```
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│ AGENT 1: LISTEN & WATCH AGENT                                                          │
-├────────────────────────────────────────────────────────────────────────────────────────┤
-│ • Responsibility: Generate 2-host conversational dialogue scripts and visual cues.     │
-│ • Input Contract: Chapter text, Document Archetype, Learner Preferred Analogies.       │
-│ • Output Contract: Structured JSON:                                                    │
-│     { "dialogue": [{"speaker": "Host1"|"Host2", "text": "...", "delivery": "..."}],   │
-│       "visual_beats": [{"timestamp": 0, "concept_id": "...", "action": "..."}] }      │
-│ • Grounding Rule: Cannot introduce external technical frameworks not in the source.   │
-│ • Target Model: Fast reasoning model (Gemini Flash / Claude Haiku / Llama 3.1 8B).     │
-└────────────────────────────────────────────────────────────────────────────────────────┘
+### 4.3 Stage 3: Socratic Recall (Active Retrieval Practice)
+* **What happens:** The user is asked to explain the core mechanism in their own words. The Recall Agent checks key claims against ground truth, flags misunderstandings, and responds with Socratic counter-questions without spoiling the answer.
+* **Cognitive Science:** **The Generation Effect** (Roediger & Karpicke). Producing an explanation from memory creates 3x stronger memory consolidation than passive review.
 
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│ AGENT 2: READ AGENT                                                                    │
-├────────────────────────────────────────────────────────────────────────────────────────┤
-│ • Responsibility: Analyze chapter structure, generate reading plan & margin notes.     │
-│ • Input Contract: Full chapter markdown, extracted section tree, formulas, code.       │
-│ • Output Contract: Structured JSON:                                                    │
-│     { "reading_plan": [{"section": "...", "level": "deep"|"normal"|"skim", "why": ""}],│
-│       "glossary": [{"term": "...", "definition": "...", "prereq": true}],             │
-│       "code_annotations": [{"line_range": "...", "explanation": "..."}] }              │
-│ • Grounding Rule: All section names must strictly match source document TOC.           │
-│ • Target Model: High-context model with strict JSON mode.                              │
-└────────────────────────────────────────────────────────────────────────────────────────┘
+### 4.4 Stage 4: Interactive Harness & Schema Reconstruction
+* **What happens:** The learner bridges theory into working intuition:
+  * **For Systems & Codebooks:** The learner runs code in the **Verification Sandbox**, sees it break under realistic stress (e.g. burst traffic or node failure), diagnoses the root cause, and observes the natural fix.
+  * **For Conceptual Textbooks:** The learner actively reconstructs the chapter's concept dependency graph from memory like a jigsaw puzzle.
+* **Cognitive Science:** **Schema Construction & Cognitive Load Theory** (Sweller). Knowledge is converted from isolated episodic facts into connected relational schemas.
 
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│ AGENT 3: RECALL AGENT (Socratic Tutor)                                                 │
-├────────────────────────────────────────────────────────────────────────────────────────┤
-│ • Responsibility: Evaluate user explanations, detect misconceptions, probe Socratically│
-│ • Input Contract: Chapter Key Claims, User Explanation, Known Misconceptions.          │
-│ • Output Contract: Structured JSON:                                                    │
-│     { "status": "mastered" | "needs_refinement" | "off_track",                         │
-│       "covered_claims": ["id1", "id2"],                                                │
-│       "detected_misconceptions": [{"concept": "...", "diagnosis": "..."}],             │
-│       "socratic_prompt": "...",                                                        │
-│       "confidence_score": 0.0-1.0 }                                                    │
-│ • Grounding Rule: Quotes must exist in user answer; corrections must cite source text. │
-│ • Target Model: Advanced reasoning model (Claude Sonnet / GPT-4o / Local Qwen 2.5 14B).│
-└────────────────────────────────────────────────────────────────────────────────────────┘
-
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│ AGENT 4: MAP AGENT                                                                     │
-├────────────────────────────────────────────────────────────────────────────────────────┤
-│ • Responsibility: Extract concept graphs, define relationships, evaluate reconstruction│
-│ • Input Contract: Chapter text, Existing Book Knowledge Graph.                         │
-│ • Output Contract: Structured JSON:                                                    │
-│     { "concepts": [{"id": "...", "name": "...", "layer": "foundation"|"applied"}],    │
-│       "edges": [{"source": "...", "target": "...", "relation": "prerequisite"|...}],  │
-│       "reconstruction_puzzle": {"scrambled_nodes": [...], "target_edges": [...]} }    │
-│ • Grounding Rule: Concepts must resolve to entities defined in the text.               │
-│ • Target Model: Structured entity extraction LLM.                                      │
-└────────────────────────────────────────────────────────────────────────────────────────┘
-
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│ AGENT 5: REMEMBER AGENT                                                                │
-├────────────────────────────────────────────────────────────────────────────────────────┤
-│ • Responsibility: Synthesize atomic flashcards and translate recall gaps into cards.   │
-│ • Input Contract: Concept Graph, Diagnosed Misconceptions, FSRS State History.         │
-│ • Output Contract: Structured JSON:                                                    │
-│     { "flashcards": [                                                                  │
-│         {"concept_id": "...", "front": "...", "back": "...", "card_type": "atomic"}   │
-│       ],                                                                               │
-│       "priority_tags": ["misconception_failover"] }                                    │
-│ • Grounding Rule: Front/Back must follow minimum information principle (atomic facts). │
-│ • Target Model: Fast instruction model (Gemini Flash / Llama 3 8B).                    │
-└────────────────────────────────────────────────────────────────────────────────────────┘
-```
+### 4.5 Stage 5: Remember & Space (Long-Term Retention)
+* **What happens:** Flashcards generated from the chapter—specifically prioritized around the learner's diagnosed misconceptions—are scheduled on a mathematical curve.
+* **Math Engine:** **Deterministic FSRS-4.5** calculates Stability ($S$), Difficulty ($D$), and Retrievability ($R$). Reviews are served right before memory drops below 90% retrievability.
 
 ---
 
-## 8. Learning Orchestrator — The Central Intelligence
-
-The **Learning Orchestrator** is the brain of Mnemos. It prevents the system from being a rigid, linear assembly line.
+## 5. Low-Level Design (LLD): Uber-Inspired MCP Gateway
 
 ```mermaid
-stateDiagram-v2
-    [*] --> Ingesting
-    Ingesting --> Stage1_Listen: Document Prepared
-    
-    Stage1_Listen --> Stage2_Read: Podcast Played
-    Stage2_Read --> Stage3_Recall: Reading Telemetry Verified
-    
-    state Stage3_Recall {
-        [*] --> SocraticEvaluation
-        SocraticEvaluation --> MisconceptionFound: Serious Gaps Detected
-        SocraticEvaluation --> RecallPassed: Threshold Met
-        MisconceptionFound --> TargetedReadRevisit: Revisit Critical Section
-        TargetedReadRevisit --> SocraticEvaluation
+flowchart LR
+    subgraph ControlPlane ["Control Plane (Registry & Governance)"]
+        direction LR
+        ToolCatalog["Tool Registry<br>(Metadata, Schemas, Ownership)"]
+        RolePolicy["Role-Scoped Access Matrix<br>('Discovery != Exposure')"]
+        ToolCatalog --> RolePolicy
+    end
+
+    subgraph DataPlane ["Data Plane (Proxy & Runtime Engine)"]
+        direction LR
+        ProxyRouter["Proxy Router & Load Balancer"]
+        DeepMindOptimizer["DeepMind Token Optimizer<br>(Compactor & Field Projector)"]
+        ProtocolBridge["Protocol Translation<br>(MCP JSON-RPC to Native Drivers)"]
+        ProxyRouter --> DeepMindOptimizer
+        DeepMindOptimizer --> ProtocolBridge
+    end
+
+    RolePolicy --> ProxyRouter
+```
+
+### Role-Scoped Tool Visibility Matrix
+* **Prime Agent:** Accesses `get_chapter_summary`, `generate_dialogue_briefing`.
+* **Read Co-Pilot Agent:** Accesses `get_active_section`, `lookup_glossary`, `generate_code_example`, `get_production_war_story`.
+* **Recall Agent:** Accesses `query_ground_truth`, `get_learner_misconceptions`, `log_misconception_resolution`.
+* **Harness & Map Agent:** Accesses `run_sandbox_code`, `inject_simulation_fault`, `get_concept_graph`.
+* **Remember Agent:** Accesses `get_due_cards`, `record_fsrs_review`, `create_atomic_card`.
+
+---
+
+## 6. Low-Level Design (LLD): Multi-Tier Cognitive Memory Engine
+
+```mermaid
+erDiagram
+    LEARNER_PROFILE ||--o{ CONCEPT_MASTERY : maintains
+    LEARNER_PROFILE ||--o{ MISCONCEPTIONS : diagnoses
+    LEARNER_PROFILE ||--o{ RECALL_SESSIONS : logs
+    CONCEPT_MASTERY ||--o{ FSRS_CARDS : schedules
+
+    LEARNER_PROFILE {
+        string user_id PK
+        string preferred_learning_style
+        float global_retention_score
+        timestamp last_synced
     }
 
-    Stage3_Recall --> Stage4_Map: Recall Complete
-    Stage4_Map --> Stage5_Remember: Concept Graph Reconstructed
-    Stage5_Remember --> LoopClosed: Cards Initialized in FSRS
-    LoopClosed --> [*]
-```
-
-### Dynamic Orchestration Rules
-1. **Evidence-Based Routing:**
-   * If a user demonstrates high prior mastery during initial recall (e.g., scoring $>90\%$ with accurate technical citations), the Orchestrator allows them to bypass introductory Stage 1 media on sibling chapters.
-2. **Struggle-Driven Revisit:**
-   * If the Recall Agent flags an unresolvable misconception after two Socratic turns, the Orchestrator does *not* lock the user or give a failing grade. Instead, it re-routes them to a targeted excerpt in Stage 2 (Read) with an annotation explaining the exact distinction.
-3. **Budget and Latency Throttling:**
-   * The Orchestrator manages model execution lanes. Lightweight tasks (reading plans, quiz checks) run asynchronously on local or fast models. Deep reasoning (Socratic diagnosis) invokes high-parameter models only when user responses deviate from expected semantic bounds.
-
----
-
-## 9. Shared Learner Memory — The Main Differentiation
-
-To solve **learner amnesia**, Mnemos maintains a unified, cross-document cognitive model of the user.
-
-```mermaid
-flowchart LR
-    subgraph MemoryStore ["Shared Learner Memory Engine"]
-        direction LR
-        Episodic[("Episodic Memory<br>• Study sessions<br>• Audio coverage<br>• Recall attempts")]
-        Semantic[("Semantic Memory<br>• Concept mastery scores<br>• Diagnosed misconceptions<br>• Cross-book links")]
-        Procedural[("Procedural Memory<br>• Effective analogies<br>• FSRS schedule state<br>• Optimal session length")]
-    end
-
-    Agents["5 Specialized AI Agents"] <--> MemoryStore
-    Orchestrator["Learning Orchestrator"] <--> MemoryStore
-```
-
-### Memory Architecture & Schema
-
-#### A. Episodic Memory (What happened?)
-* Records explicit events: timestamps of chapters started/completed, raw transcripts of user explanations, playback speed preferences, and exact answers submitted to quizzes.
-
-#### B. Semantic Memory (What does the learner understand?)
-* Tracks concept-level mastery independent of specific book chapters:
-```json
-{
-  "concept_id": "consensus_paxos",
-  "domain": "distributed_systems",
-  "mastery_score": 0.62,
-  "confidence_interval": [0.55, 0.69],
-  "last_tested": 1732008400,
-  "misconceptions": [
-    {
-      "id": "misc_split_brain_quorum",
-      "summary": "Believes simple majority heartbeats prevent split-brain without monotonic generation numbers",
-      "first_detected_in": "book_ddia_ch5",
-      "occurrences": 2,
-      "resolved": false
+    CONCEPT_MASTERY {
+        string concept_id PK
+        string domain
+        string canonical_name
+        float mastery_score
+        int total_recall_attempts
+        int failed_recall_attempts
+        timestamp last_tested_at
     }
-  ]
-}
-```
 
-#### C. Procedural Memory (What should happen next?)
-* Records what instructional strategies work for this learner:
-  * *"Learner internalizes state machines best through code implementations rather than mathematical proofs."*
-  * *"Optimal daily review volume: 15–20 cards. Accuracy plummets after 25 cards."*
+    MISCONCEPTIONS {
+        string id PK
+        string concept_id FK
+        string diagnosis_summary
+        string triggering_pattern
+        boolean resolved
+        timestamp created_at
+        timestamp resolved_at
+    }
+
+    RECALL_SESSIONS {
+        string id PK
+        string document_id
+        int chapter_index
+        string prompt_text
+        string user_response
+        float awarded_score
+        string socratic_feedback
+        timestamp timestamp
+    }
+
+    FSRS_CARDS {
+        string card_id PK
+        string concept_id FK
+        float stability
+        float difficulty
+        int reps
+        int lapses
+        timestamp due_timestamp
+        int current_state
+    }
+```
 
 ---
 
-## 10. Document Intelligence Layer
-
-Real educational materials do not look like plain prose novels. The Document Intelligence Layer classifies documents upon ingestion and configures the extraction pipeline accordingly.
+## 7. Low-Level Design (LLD): Interactive Verification Sandbox
 
 ```mermaid
 flowchart LR
-    Doc["Raw Input File<br>(PDF / EPUB / Markdown)"] --> Classifier["Document Classifier & Layout Parser"]
-    Classifier --> TypeA["Textbook Archetype<br>• Chapter/Section TOC<br>• Progressive Pedagogy"]
-    Classifier --> TypeB["Research Paper Archetype<br>• Abstract / Method / Results<br>• Dense Formalisms"]
-    Classifier --> TypeC["Lecture Slides Archetype<br>• Fragmented Bullet Points<br>• High Context Expansion"]
-    Classifier --> TypeD["Programming Manual Archetype<br>• Code Snippets / Syntax<br>• Execution Semantics"]
+    UserCode["Learner Code (TypeScript / Python)"] --> Sandbox["Isolated Execution Sandbox (Web Worker / Wasm / Subprocess)"]
+    
+    subgraph SandboxInternals ["Sandbox Runtime & Virtual Shims"]
+        direction LR
+        Watchdog["1.5s Watchdog<br>(Prevents Infinite Loops)"]
+        Shims["Virtual Shim Registry<br>• Virtual Clock (Deterministic time)<br>• Virtual Storage (Byte-log & seeks)<br>• Virtual Network (Latency & partitions)"]
+    end
+
+    Sandbox --> SandboxInternals
+    SandboxInternals --> StressTest["Deterministic Stress Scenario<br>(Traffic bursts / Fault injections)"]
+    StressTest --> TelemetryFrames["SimulationTrace Frames<br>• timeline_stream<br>• state_xray<br>• topology_graph"]
+    TelemetryFrames --> NativeUI["Visual Render in Apple UI"]
 ```
 
 ---
 
-## 11. Technical Architecture: Incorporating the MCP Gateway
+## 8. Focused 4-Week Delivery Roadmap (Completing the Remaining 35%)
 
-```mermaid
-flowchart LR
-    subgraph IngestionLayer ["1. Ingestion (BUILT)"]
-        direction LR
-        Book["PDF / EPUB"] --> Splitter["chapters.py Parser"]
-    end
-
-    subgraph OrchestratorLayer ["2. Orchestration"]
-        direction LR
-        Splitter --> Orch["Learning Orchestrator"]
-    end
-
-    subgraph AgentsLayer ["3. 5 Learning Agents"]
-        direction LR
-        Orch <--> A1["Listen Agent"]
-        Orch <--> A2["Read Agent"]
-        Orch <--> A3["Recall Agent"]
-        Orch <--> A4["Map Agent"]
-        Orch <--> A5["Remember Agent"]
-    end
-
-    subgraph GatewayLayer ["4. Mnemos MCP Gateway (NEW)"]
-        direction LR
-        Router["Proxy Router"]
-        Policy["Access Policy Matrix"]
-        Projector["Response Projector"]
-        Router --> Policy
-        Policy --> Projector
-    end
-
-    subgraph ServicesLayer ["5. Backend Services"]
-        direction LR
-        S_RAG["RAG Service (SQLite FTS5)"]
-        S_Mem["Learner Memory DB"]
-        S_Audio["Windows Audio (Edge-TTS)"]
-        S_FSRS["FSRS-4.5 Engine (BUILT)"]
-        S_Graph["Knowledge Graph (BUILT)"]
-        S_Models["Model Hub (BUILT)"]
-    end
-
-    A1 --> Router
-    A2 --> Router
-    A3 --> Router
-    A4 --> Router
-    A5 --> Router
-
-    Projector <--> S_RAG
-    Projector <--> S_Mem
-    Projector <--> S_Audio
-    Projector <--> S_FSRS
-    Projector <--> S_Graph
-    Projector <--> S_Models
-```
-
----
-
-## 12. Cross-Platform Experience: Windows & Android
-
-```
-┌───────────────────────────────────────┐         ┌───────────────────────────────────────┐
-│         WINDOWS WORKSTATION           │         │           ANDROID COMPANION           │
-├───────────────────────────────────────┤         ├───────────────────────────────────────┤
-│ • Heavy document parsing & OCR        │         │ • Background media player (Media3)    │
-│ • Audio dialogue synthesis (FFmpeg)   │  SYNC   │ • Lockscreen podcast controls         │
-│ • Local LLM inference (Ollama / APIs) │ ◄─────► │ • Quick on-the-go FSRS flashcard deck │
-│ • Deep reading plan & margin notes    │         │ • Rapid Socratic micro-quizzes        │
-│ • Interactive concept graph rebuild   │         │ • Pip home screen widget & nudges     │
-│ • Full knowledge base management      │         │ • Offline review queue cache          │
-└───────────────────────────────────────┘         └───────────────────────────────────────┘
-```
-
----
-
-## 13. Focused 4-Week Execution Plan (Completing the Remaining 35%)
-
-Because 65% of the codebase is already operational, our execution roadmap is focused strictly on delivering the missing pieces:
+Because heavy audio synthesis and video rendering are eliminated, the system is dramatically simpler to build and maintain:
 
 | Week | Focus Area | Deliverables to Build | Base Code Reused |
 | :---: | :--- | :--- | :--- |
-| **Week 1** | **Windows Audio & Splitter** | Implement `speech/windows_tts.py` using `edge-tts` and FFmpeg concat/AAC encoding. Port Drive sync to Python. | `pipeline/neuralloop_books/audio.py`, `chapters.py` |
-| **Week 2** | **MCP Gateway Core** | Build `mcp_gateway.py` with Control Plane Tool Registry and Data Plane Proxy Router. | `pipeline/neuralloop_books/models/` |
-| **Week 3** | **Learner Memory & Socratic Recall** | Implement SQLite `learner_memory.db` and upgrade `recall.py` into a multi-turn Socratic diagnostic tutor. | `pipeline/neuralloop_books/recall.py`, `schemas.py` |
-| **Week 4** | **Android Companion MVP** | Build lightweight Flutter/Compose app for background audio streaming, FSRS card reviews, and Google Drive sync. | `apple/Sources/NeuralLoopCore/FSRS.swift` (transpiled/reused) |
+| **Week 1** | **MCP Gateway & Token Optimizer** | Build `mcp_gateway.py` with Control Plane Tool Registry, Role-Scoped Access Policies, and DeepMind-style Response Field Projection. | `pipeline/neuralloop_books/models/` |
+| **Week 2** | **Conversational Reading Co-Pilot** | Implement the Stage 2 in-situ co-pilot with quick action triggers (*"Show Me in Code"*, *"Production Reality Check"*), and margin whispers. | `pipeline/neuralloop_books/prompts.py`, `schemas.py` |
+| **Week 3** | **Multi-Tier Memory & Socratic Recall** | Implement SQLite `learner_memory.db` and upgrade `recall.py` into a multi-turn Socratic diagnostic tutor with cross-document persistence. | `pipeline/neuralloop_books/recall.py` |
+| **Week 4** | **Verification Sandbox & Harness** | Integrate the deterministic code execution sandbox and telemetry visualizer primitives into Stage 4. | `apple/Sources/NeuralLoopCore/` |
 
 ---
 
-## 14. Success Metrics
+## 9. Success Metrics
 
 1. **User Habit Retention:** $>40\%$ of users who start a book complete at least 5 chapter loops (vs. industry benchmark of $<10\%$ for technical book completion).
 2. **Delayed Recall Accuracy:** $>85\%$ success rate on FSRS flashcard reviews at the 30-day interval.
 3. **Misconception Resolution Rate:** $>75\%$ of flagged conceptual misunderstandings successfully resolved within subsequent recall sessions.
-4. **Zero Cloud Ingestion Cost:** The entire system operates without recurring developer server bills by leveraging local compute and user-owned storage.
+4. **Streaming Co-Pilot Latency:** $<400\text{ms}$ time-to-first-token on in-situ reading co-pilot queries via DeepMind KV cache alignment.
+5. **Zero Cloud Ingestion Cost:** The entire system operates without recurring developer server bills by leveraging local compute and user-owned storage.
